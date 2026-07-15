@@ -1,0 +1,4111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AetherLens // Image Tracker & Catalog</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="https://apis.google.com/js/api.js" async defer></script>
+
+  <style>
+    /* ==========================================
+       DESIGN SYSTEM & CSS VARIABLES
+       ========================================== */
+    :root {
+      /* Typography */
+      --font-heading: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+      /* Dark Theme (Default) */
+      --bg-app: #090d16;
+      --bg-header: rgba(15, 23, 42, 0.6);
+      --bg-card: rgba(30, 41, 59, 0.45);
+      --bg-card-hover: rgba(30, 41, 59, 0.7);
+      --bg-input: rgba(15, 23, 42, 0.6);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --border-hover: rgba(99, 102, 241, 0.3);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+
+      /* Brand Accent Colors */
+      --primary: #6366f1; /* Indigo */
+      --primary-hover: #4f46e5;
+      --primary-glow: rgba(99, 102, 241, 0.15);
+      --accent: #d946ef; /* Magenta */
+      --accent-glow: rgba(217, 70, 239, 0.15);
+      --success: #10b981; /* Emerald */
+      --warning: #f59e0b; /* Amber */
+      --danger: #ef4444; /* Rose */
+
+      /* Glassmorphism details */
+      --shadow-sm: 0 2px 8px -1px rgba(0, 0, 0, 0.15);
+      --shadow-md: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+      --shadow-lg: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
+      --glass-blur: blur(16px) saturate(180%);
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+    }
+
+    [data-theme="light"] {
+      /* Light Theme */
+      --bg-app: #f4f6fa;
+      --bg-header: rgba(255, 255, 255, 0.75);
+      --bg-card: rgba(255, 255, 255, 0.65);
+      --bg-card-hover: rgba(255, 255, 255, 0.9);
+      --bg-input: rgba(255, 255, 255, 0.9);
+      --border-color: rgba(0, 0, 0, 0.06);
+      --border-hover: rgba(79, 70, 229, 0.3);
+      --text-main: #0f172a;
+      --text-muted: #475569;
+      --text-dim: #94a3b8;
+
+      --primary: #4f46e5;
+      --primary-hover: #3730a3;
+      --primary-glow: rgba(79, 70, 229, 0.08);
+      --accent: #c026d3;
+      --accent-glow: rgba(192, 38, 211, 0.08);
+
+      --shadow-sm: 0 2px 8px -1px rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.05);
+      --shadow-lg: 0 20px 40px -15px rgba(15, 23, 42, 0.12);
+    }
+
+    /* ==========================================
+       RESET & BASE STYLES
+       ========================================== */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    body {
+      background-color: var(--bg-app);
+      color: var(--text-main);
+      font-family: var(--font-body);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    input, select, textarea, button {
+      font-family: inherit;
+      color: inherit;
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: var(--bg-app);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--border-color);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--text-dim);
+    }
+
+    /* ==========================================
+       LAYOUT STRUCTURE
+       ========================================== */
+    .app-container {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    /* HEADER */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--bg-header);
+      backdrop-filter: var(--glass-blur);
+      -webkit-backdrop-filter: var(--glass-blur);
+      border-bottom: 1px solid var(--border-color);
+      padding: 1rem 2rem;
+    }
+
+    .header-content {
+      max-width: 1600px;
+      margin: 0 auto;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1.5rem;
+    }
+
+    .brand-logo {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      text-decoration: none;
+    }
+
+    .brand-logo svg {
+      width: 2.25rem;
+      height: 2.25rem;
+      color: var(--primary);
+      filter: drop-shadow(0 0 8px var(--primary-glow));
+      animation: spin-pulse 8s linear infinite;
+    }
+
+    @keyframes spin-pulse {
+      0% { transform: rotate(0deg) scale(1); }
+      50% { transform: rotate(180deg) scale(1.08); }
+      100% { transform: rotate(360deg) scale(1); }
+    }
+
+    .brand-title {
+      font-family: var(--font-heading);
+      font-weight: 700;
+      font-size: 1.5rem;
+      letter-spacing: -0.025em;
+      background: linear-gradient(135deg, var(--text-main) 30%, var(--primary) 70%, var(--accent) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .stats-bar {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      background: rgba(0, 0, 0, 0.15);
+      padding: 0.5rem 1.25rem;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-color);
+    }
+
+    .stat-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .stat-item span.count {
+      font-family: var(--font-heading);
+      font-weight: 600;
+      color: var(--text-main);
+      background: var(--border-color);
+      padding: 0.15rem 0.5rem;
+      border-radius: 6px;
+      font-size: 0.8rem;
+    }
+
+    .action-group {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    /* BUTTONS */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      border-radius: var(--radius-sm);
+      font-weight: 500;
+      font-size: 0.875rem;
+      cursor: pointer;
+      border: 1px solid transparent;
+      outline: none;
+      white-space: nowrap;
+    }
+
+    .btn-svg-only {
+      padding: 0.5rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-color);
+      background: var(--bg-card);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn-svg-only:hover {
+      border-color: var(--border-hover);
+      color: var(--primary);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
+      color: #ffffff;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+    }
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(99, 102, 241, 0.35);
+    }
+
+    .btn-secondary {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+    }
+    .btn-secondary:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-hover);
+    }
+
+    .btn-accent {
+      background: linear-gradient(135deg, var(--accent) 0%, #c026d3 100%);
+      color: #ffffff;
+      box-shadow: 0 4px 12px rgba(217, 70, 239, 0.25);
+    }
+    .btn-accent:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(217, 70, 239, 0.35);
+    }
+
+    .btn-danger-link {
+      background: transparent;
+      color: var(--danger);
+      font-size: 0.8rem;
+    }
+    .btn-danger-link:hover {
+      text-decoration: underline;
+    }
+
+    /* MAIN CONTAINER */
+    main {
+      flex: 1;
+      max-width: 1600px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 1.5rem 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    /* CONTROL PANEL (Search, Filter, Sort) */
+    .control-panel {
+      background: var(--bg-header);
+      border: 1px solid var(--border-color);
+      padding: 1rem;
+      border-radius: var(--radius-md);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .filters-left {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      flex: 1;
+      min-width: 280px;
+    }
+
+    .search-wrapper {
+      position: relative;
+      flex: 1;
+      min-width: 220px;
+    }
+
+    .search-wrapper svg {
+      position: absolute;
+      left: 0.75rem;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 1.1rem;
+      height: 1.1rem;
+      color: var(--text-dim);
+      pointer-events: none;
+    }
+
+    .input-search {
+      width: 100%;
+      padding: 0.5rem 0.75rem 0.5rem 2.25rem;
+      border-radius: var(--radius-sm);
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      font-size: 0.9rem;
+    }
+
+    .input-search:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-glow);
+    }
+
+    .select-filter {
+      padding: 0.5rem 2rem 0.5rem 0.75rem;
+      border-radius: var(--radius-sm);
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      font-size: 0.875rem;
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 0.75rem center;
+      background-size: 1rem;
+      min-width: 130px;
+    }
+
+    .select-filter:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    .filters-right {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .view-toggle {
+      display: flex;
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 2px;
+    }
+
+    .view-btn {
+      background: transparent;
+      border: none;
+      padding: 0.4rem;
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-dim);
+    }
+
+    .view-btn.active {
+      background: var(--primary);
+      color: #ffffff;
+    }
+
+    /* ==========================================
+       IMAGE GRID / CARD VIEW
+       ========================================== */
+    .catalog-container {
+      display: grid;
+      gap: 1.5rem;
+    }
+
+    .grid-view {
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    }
+
+    .list-view {
+      grid-template-columns: 1fr;
+    }
+
+    /* CARD STYLING */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      height: 380px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .card:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-hover);
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .list-view .card {
+      flex-direction: row;
+      height: 90px;
+      align-items: center;
+      padding: 0.5rem 1rem;
+      gap: 1.5rem;
+    }
+
+    /* Card Image Container */
+    .card-img-wrapper {
+      position: relative;
+      width: 100%;
+      height: 200px;
+      overflow: hidden;
+      background: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .list-view .card-img-wrapper {
+      width: 74px;
+      height: 74px;
+      border-radius: var(--radius-sm);
+      flex-shrink: 0;
+    }
+
+    .card-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0;
+      transition: opacity 0.4s ease, transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .card-img.loaded {
+      opacity: 1;
+    }
+
+    .card:hover .card-img {
+      transform: scale(1.05);
+    }
+
+    /* Placeholder for Loading or Error */
+    .img-placeholder {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(30, 41, 59, 0.5) 0%, rgba(15, 23, 42, 0.8) 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      color: var(--text-dim);
+      padding: 1rem;
+      text-align: center;
+      font-size: 0.8rem;
+    }
+
+    .img-placeholder svg {
+      width: 2rem;
+      height: 2rem;
+      color: var(--text-dim);
+    }
+
+    .img-placeholder.error {
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(15, 23, 42, 0.9) 100%);
+      color: var(--danger);
+    }
+
+    .img-placeholder.error svg {
+      color: var(--danger);
+    }
+
+    /* Card Action Badges */
+    .card-actions-overlay {
+      position: absolute;
+      top: 0.75rem;
+      right: 0.75rem;
+      display: flex;
+      gap: 0.5rem;
+      opacity: 0;
+      transform: translateY(-5px);
+      transition: all 0.3s ease;
+      z-index: 5;
+    }
+
+    .card:hover .card-actions-overlay {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .list-view .card-actions-overlay {
+      position: relative;
+      top: 0;
+      right: 0;
+      opacity: 1;
+      transform: none;
+      margin-left: auto;
+    }
+
+    .action-icon-btn {
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(4px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      width: 2rem;
+      height: 2rem;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: #ffffff;
+      transition: all 0.2s ease;
+    }
+
+    .action-icon-btn:hover {
+      background: var(--primary);
+      transform: scale(1.1);
+    }
+
+    .action-icon-btn.fav-btn.active {
+      color: var(--accent);
+      background: rgba(217, 70, 239, 0.2);
+      border-color: rgba(217, 70, 239, 0.4);
+    }
+
+    .action-icon-btn.fav-btn.active:hover {
+      background: var(--accent);
+      color: #ffffff;
+    }
+
+    /* Card Info Area */
+    .card-info {
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      flex: 1;
+    }
+
+    .list-view .card-info {
+      flex-direction: row;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 0;
+      gap: 2rem;
+      width: 100%;
+    }
+
+    .card-title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+
+    .list-view .card-title-row {
+      flex: 2;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .card-title {
+      font-family: var(--font-heading);
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .card-status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.2rem 0.6rem;
+      border-radius: var(--radius-sm);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .badge-review {
+      background: rgba(245, 158, 11, 0.12);
+      color: var(--warning);
+      border: 1px solid rgba(245, 158, 11, 0.25);
+    }
+
+    .badge-active {
+      background: rgba(16, 185, 129, 0.12);
+      color: var(--success);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+    }
+
+    .badge-archived {
+      background: rgba(148, 163, 184, 0.12);
+      color: var(--text-muted);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+    }
+
+    .card-desc {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      line-height: 1.4;
+      height: 2.8rem;
+    }
+
+    .list-view .card-desc {
+      flex: 3;
+      height: auto;
+      -webkit-line-clamp: 1;
+      display: block;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .card-rating-tags {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      margin-top: auto;
+    }
+
+    .list-view .card-rating-tags {
+      flex: 2;
+      flex-direction: row;
+      align-items: center;
+      margin-top: 0;
+      gap: 2rem;
+      justify-content: flex-end;
+    }
+
+    .rating-stars {
+      display: flex;
+      gap: 0.15rem;
+      color: var(--warning);
+    }
+
+    .rating-stars svg {
+      width: 0.95rem;
+      height: 0.95rem;
+    }
+
+    .rating-stars svg.empty {
+      color: var(--text-dim);
+      opacity: 0.35;
+    }
+
+    .tags-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      max-height: 28px;
+      overflow: hidden;
+    }
+
+    .list-view .tags-container {
+      max-height: none;
+      min-width: 150px;
+    }
+
+    .tag-pill {
+      font-size: 0.7rem;
+      font-weight: 500;
+      background: rgba(99, 102, 241, 0.12);
+      color: var(--primary);
+      border: 1px solid rgba(99, 102, 241, 0.18);
+      padding: 0.15rem 0.5rem;
+      border-radius: var(--radius-sm);
+    }
+
+    /* ==========================================
+       SIDEBAR / DETAILS DRAWER
+       ========================================== */
+    .drawer-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(8px);
+      z-index: 200;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+
+    .drawer-backdrop.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .drawer {
+      position: fixed;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 100%;
+      max-width: 500px;
+      background: var(--bg-app);
+      border-left: 1px solid var(--border-color);
+      box-shadow: var(--shadow-lg);
+      z-index: 210;
+      transform: translateX(100%);
+      transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .drawer.open {
+      transform: translateX(0);
+    }
+
+    .drawer-header {
+      padding: 1.25rem;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-header);
+    }
+
+    .drawer-title {
+      font-family: var(--font-heading);
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+
+    .close-btn {
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .close-btn:hover {
+      color: var(--text-main);
+    }
+
+    .drawer-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    /* Drawer Image Panel */
+    .drawer-img-panel {
+      width: 100%;
+      height: 260px;
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      position: relative;
+      background: #000;
+      box-shadow: var(--shadow-md);
+      cursor: zoom-in;
+    }
+
+    .drawer-img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .drawer-img-overlay-icon {
+      position: absolute;
+      bottom: 0.75rem;
+      right: 0.75rem;
+      background: rgba(15, 23, 42, 0.7);
+      padding: 0.4rem;
+      border-radius: 50%;
+      color: #fff;
+      display: flex;
+    }
+
+    /* Edit Form */
+    .drawer-form {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .form-group label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .form-control {
+      padding: 0.6rem 0.75rem;
+      border-radius: var(--radius-sm);
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      font-size: 0.9rem;
+      width: 100%;
+    }
+
+    .form-control:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-glow);
+    }
+
+    textarea.form-control {
+      min-height: 80px;
+      resize: vertical;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    /* Interactive Stars */
+    .interactive-stars {
+      display: flex;
+      gap: 0.3rem;
+      color: var(--text-dim);
+      font-size: 1.5rem;
+    }
+
+    .interactive-stars svg {
+      width: 1.5rem;
+      height: 1.5rem;
+      cursor: pointer;
+      transition: transform 0.15s ease, color 0.15s ease;
+    }
+
+    .interactive-stars svg:hover {
+      transform: scale(1.2);
+    }
+
+    .interactive-stars svg.active {
+      color: var(--warning);
+    }
+
+    /* Drawer Footer */
+    .drawer-footer {
+      padding: 1.25rem;
+      border-top: 1px solid var(--border-color);
+      background: var(--bg-header);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    /* ==========================================
+       MODALS
+       ========================================== */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(10px);
+      z-index: 300;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+      padding: 1rem;
+    }
+
+    .modal-backdrop.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal {
+      background: var(--bg-app);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      width: 100%;
+      max-width: 550px;
+      max-height: 88vh;
+      box-shadow: var(--shadow-lg);
+      overflow: hidden;
+      transform: scale(0.95);
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .modal-backdrop.open .modal {
+      transform: scale(1);
+    }
+
+    .modal-header {
+      padding: 1rem 1.5rem;
+      background: var(--bg-header);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .modal-body {
+      padding: 1.25rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      overflow-y: auto;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .modal-footer {
+      padding: 1rem 1.5rem;
+      background: var(--bg-header);
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.75rem;
+      flex-shrink: 0;
+    }
+
+    /* Lightbox Modal Specific */
+    .lightbox-modal {
+      max-width: 90vw;
+      max-height: 90vh;
+      border: none;
+      background: transparent;
+      box-shadow: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .lightbox-img {
+      max-width: 100%;
+      max-height: 85vh;
+      object-fit: contain;
+      border-radius: var(--radius-md);
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+    }
+
+    .lightbox-caption {
+      position: absolute;
+      bottom: -2.5rem;
+      color: #ffffff;
+      text-align: center;
+      width: 100%;
+      font-size: 0.95rem;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+    }
+
+    /* EMPTY STATE */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      padding: 5rem 2rem;
+      text-align: center;
+      border: 2px dashed var(--border-color);
+      border-radius: var(--radius-lg);
+      margin: 2rem 0;
+    }
+
+    .empty-state svg {
+      width: 4rem;
+      height: 4rem;
+      color: var(--text-dim);
+    }
+
+    .empty-state h3 {
+      font-family: var(--font-heading);
+      font-size: 1.3rem;
+      font-weight: 600;
+    }
+
+    .empty-state p {
+      color: var(--text-muted);
+      max-width: 400px;
+      font-size: 0.9rem;
+      margin-bottom: 0.5rem;
+    }
+
+    /* ==========================================
+       RESPONSIVENESS
+       ========================================== */
+    @media (max-width: 768px) {
+      header {
+        padding: 1rem;
+      }
+      .header-content {
+        gap: 1rem;
+      }
+      .stats-bar {
+        order: 3;
+        width: 100%;
+        justify-content: space-around;
+        font-size: 0.75rem;
+      }
+      .action-group {
+        width: 100%;
+        justify-content: space-between;
+      }
+      .action-group .btn {
+        flex: 1;
+      }
+      main {
+        padding: 1rem;
+      }
+      .control-panel {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .filters-left {
+        flex-direction: column;
+      }
+      .filters-right {
+        justify-content: space-between;
+      }
+      .drawer {
+        max-width: 100%;
+      }
+      .list-view .card {
+        flex-direction: column;
+        height: auto;
+        padding: 1rem;
+        align-items: stretch;
+        gap: 1rem;
+      }
+      .list-view .card-img-wrapper {
+        width: 100%;
+        height: 180px;
+      }
+      .list-view .card-info {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+      }
+      .list-view .card-rating-tags {
+        flex-direction: row;
+        justify-content: space-between;
+      }
+      .list-view .card-actions-overlay {
+        position: absolute;
+        top: 1.5rem;
+        right: 1.5rem;
+      }
+    }
+
+    /* Google Drive Sync Status Badge */
+    .sync-status {
+      font-size: 0.8rem;
+      font-weight: 500;
+      padding: 0.4rem 0.8rem;
+      border-radius: var(--radius-sm);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: var(--bg-card);
+      color: var(--text-muted);
+      white-space: pre-line;
+      line-height: 1.4;
+      text-align: center;
+      justify-content: center;
+      border: 1px solid var(--border-color);
+    }
+    .sync-status.active {
+      background: rgba(99, 102, 241, 0.15);
+      color: var(--primary);
+      border-color: var(--border-hover);
+    }
+    .sync-status.error {
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--danger);
+      border-color: rgba(239, 68, 68, 0.3);
+      cursor: pointer;
+    }
+    button:disabled {
+      opacity: 0.6;
+      cursor: wait;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-container">
+
+  <!-- ==========================================
+       HEADER
+       ========================================== -->
+  <header>
+    <div class="header-content">
+      <a href="#" class="brand-logo">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <circle cx="12" cy="12" r="10" />
+          <circle cx="12" cy="12" r="3" />
+          <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+        </svg>
+        <span class="brand-title">AETHER LENS</span>
+      </a>
+
+      <!-- Quick Stats -->
+      <div class="stats-bar">
+        <div class="stat-item" title="Total Loaded Images">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width: 1rem; height: 1rem;">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          Images <span id="stat-total" class="count">0</span>
+        </div>
+        <div class="stat-item" title="Favorite Items">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24" style="width: 1rem; height: 1rem; color: var(--accent);">
+            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+          </svg>
+          Favorites <span id="stat-favs" class="count">0</span>
+        </div>
+        <div class="stat-item" title="Unique Categorized Tags">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width: 1rem; height: 1rem;">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
+          </svg>
+          Tags <span id="stat-tags" class="count">0</span>
+        </div>
+      </div>
+
+      <!-- Action Panel Buttons -->
+      <div class="action-group">
+        <button id="theme-toggle-btn" class="btn-svg-only" title="Toggle Light/Dark Theme">
+          <svg id="theme-sun" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width: 1.25rem; height: 1.25rem; display: none;">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z" />
+          </svg>
+          <svg id="theme-moon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width: 1.25rem; height: 1.25rem;">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+          </svg>
+        </button>
+
+        <button id="btn-export" class="btn btn-secondary" title="Export as JSON file">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width: 1.1rem; height: 1.1rem;">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+          Export
+        </button>
+
+        <button id="btn-import-modal" class="btn btn-secondary" title="Import from JSON file">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width: 1.1rem; height: 1.1rem;">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+          </svg>
+          Import
+        </button>
+
+        <button id="btn-bulk" class="btn btn-accent" title="Paste multiple links at once">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width: 1.1rem; height: 1.1rem;">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+          </svg>
+          Bulk Add
+        </button>
+
+        <button id="btn-add-single" class="btn btn-primary" title="Add a single image link">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width: 1.1rem; height: 1.1rem;">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Add Image
+        </button>
+
+        <button id="authBtn" class="btn btn-secondary" onclick="handleAuthClick()" title="Connect Google Drive">Connect Drive</button>
+        <div id="syncStatusIndicator" class="sync-status" style="display: none;"></div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ==========================================
+       MAIN CONTENT
+       ========================================== -->
+  <main>
+
+    <!-- Control Filters Bar -->
+    <div class="control-panel">
+
+      <div class="filters-left">
+        <!-- Search -->
+        <div class="search-wrapper">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input type="text" id="search-input" class="input-search" placeholder="Search by title, description or tags...">
+        </div>
+
+        <!-- Tag Filter -->
+        <select id="filter-tag" class="select-filter">
+          <option value="">All Tags</option>
+        </select>
+
+        <!-- Status Filter -->
+        <select id="filter-status" class="select-filter">
+          <option value="">All Statuses</option>
+          <option value="To Review">To Review</option>
+          <option value="Active">Active</option>
+          <option value="Archived">Archived</option>
+        </select>
+
+        <!-- Rating Filter -->
+        <select id="filter-rating" class="select-filter">
+          <option value="">All Ratings</option>
+          <option value="5">⭐⭐⭐⭐⭐ (5 Stars)</option>
+          <option value="4">⭐⭐⭐⭐ & Up</option>
+          <option value="3">⭐⭐⭐ & Up</option>
+          <option value="2">⭐⭐ & Up</option>
+          <option value="1">⭐ & Up</option>
+        </select>
+      </div>
+
+      <div class="filters-right">
+        <!-- Sort Dropdown -->
+        <select id="sort-select" class="select-filter" style="min-width: 160px;">
+          <option value="dateAdded-desc">Newest Added</option>
+          <option value="dateAdded-asc">Oldest Added</option>
+          <option value="rating-desc">Highest Rated</option>
+          <option value="title-asc">Title (A - Z)</option>
+          <option value="title-desc">Title (Z - A)</option>
+        </select>
+
+        <!-- Grid/List View Toggles -->
+        <div class="view-toggle">
+          <button id="view-grid-btn" class="view-btn active" title="Switch to Grid View">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width: 1.1rem; height: 1.1rem;">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+            </svg>
+          </button>
+          <button id="view-list-btn" class="view-btn" title="Switch to List View">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width: 1.1rem; height: 1.1rem;">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Empty State and Grid -->
+    <div id="empty-state" class="empty-state" style="display: none;">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+      </svg>
+      <h3>No Images Tracked</h3>
+      <p>Start loading your image library. You can add images one by one, paste bulk links, or initialize with our curated sample database of 50 beautiful high-res URLs.</p>
+      <div style="display: flex; gap: 0.75rem; margin-top: 1rem;">
+        <button id="btn-empty-load-samples" class="btn btn-accent">⚡ Load 50 Sample Images</button>
+        <button id="btn-empty-add" class="btn btn-primary">Add First Image</button>
+      </div>
+    </div>
+
+    <!-- Active Catalog Layout -->
+    <div id="catalog-container" class="catalog-container grid-view">
+      <!-- Image cards will be injected here dynamically -->
+    </div>
+
+    <!-- Clear database utilities -->
+    <div style="display: flex; justify-content: center; margin-top: 1.5rem;">
+      <button id="btn-clear-db" class="btn btn-danger-link">⚠️ Wipe All Saved Data</button>
+    </div>
+
+  </main>
+</div>
+
+<!-- ==========================================
+     SIDEBAR / DETAILS DRAWER
+     ========================================== -->
+<div id="drawer-backdrop" class="drawer-backdrop"></div>
+<div id="details-drawer" class="drawer">
+  <div class="drawer-header">
+    <h3 class="drawer-title">Image Details</h3>
+    <button id="drawer-close" class="close-btn" title="Close Drawer">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width: 1.5rem; height: 1.5rem;">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    </button>
+  </div>
+
+  <div class="drawer-body">
+    <!-- Image Panel -->
+    <div id="drawer-img-click" class="drawer-img-panel" title="Click to view fullscreen">
+      <img id="drawer-image" class="drawer-img" src="" alt="Detail view">
+      <div class="drawer-img-overlay-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width: 1rem; height: 1rem;">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m4-3H6" />
+        </svg>
+      </div>
+    </div>
+
+    <!-- Edit Form -->
+    <form id="drawer-form" class="drawer-form" onsubmit="event.preventDefault();">
+      <input type="hidden" id="edit-id">
+
+      <div class="form-group">
+        <label for="edit-title">Image Title</label>
+        <input type="text" id="edit-title" class="form-control" required placeholder="Give this image a name...">
+      </div>
+
+      <div class="form-group">
+        <label for="edit-url">Image URL</label>
+        <input type="url" id="edit-url" class="form-control" required placeholder="https://example.com/image.jpg">
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="edit-status">Status</label>
+          <select id="edit-status" class="form-control">
+            <option value="To Review">To Review</option>
+            <option value="Active">Active</option>
+            <option value="Archived">Archived</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Rating</label>
+          <div id="edit-stars" class="interactive-stars">
+            <!-- Intersected dynamically in JS -->
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="edit-tags">Tags (Comma Separated)</label>
+        <input type="text" id="edit-tags" class="form-control" placeholder="e.g. nature, wallpaper, sky">
+      </div>
+
+      <div class="form-group">
+        <label for="edit-notes">Notes & Description</label>
+        <textarea id="edit-notes" class="form-control" placeholder="Add thoughts, description or context here..."></textarea>
+      </div>
+    </form>
+  </div>
+
+  <div class="drawer-footer">
+    <button id="btn-drawer-delete" class="btn btn-secondary" style="border-color: var(--danger); color: var(--danger);">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width: 1.1rem; height: 1.1rem;">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+      </svg>
+      Delete
+    </button>
+
+    <div style="display: flex; gap: 0.5rem;">
+      <button id="btn-drawer-cancel" class="btn btn-secondary">Cancel</button>
+      <button id="btn-drawer-save" class="btn btn-primary">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==========================================
+     MODAL: ADD SINGLE IMAGE
+     ========================================== -->
+<div id="modal-add-single" class="modal-backdrop">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="brand-title" style="font-size: 1.2rem;">Add New Image</h3>
+      <button id="btn-close-add-modal" class="close-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width: 1.25rem; height: 1.25rem;">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <form id="add-single-form" class="drawer-form" onsubmit="event.preventDefault();">
+        <div class="form-group">
+          <label for="add-url">Image URL *</label>
+          <input type="url" id="add-url" class="form-control" required placeholder="https://images.unsplash.com/photo-...">
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 0.75rem; margin: 0.15rem 0;">
+          <div style="flex: 1; height: 1px; background: var(--border-color);"></div>
+          <span style="font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em;">or</span>
+          <div style="flex: 1; height: 1px; background: var(--border-color);"></div>
+        </div>
+
+        <div class="form-group">
+          <label for="add-file-input">Upload From Device</label>
+          <input type="file" id="add-file-input" accept="image/*" class="form-control" style="padding: 0.4rem;">
+          <div id="add-file-preview-wrap" style="display: none; margin-top: 0.5rem;">
+            <img id="add-file-preview" src="" alt="Upload preview" style="max-width: 100%; max-height: 140px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); object-fit: contain; display: block;">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="add-title">Title</label>
+          <input type="text" id="add-title" class="form-control" placeholder="Leave blank to auto-detect from filename">
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="add-status">Status</label>
+            <select id="add-status" class="form-control">
+              <option value="To Review" selected>To Review</option>
+              <option value="Active">Active</option>
+              <option value="Archived">Archived</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Rating</label>
+            <div id="add-stars" class="interactive-stars">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="add-tags">Tags (Comma Separated)</label>
+          <input type="text" id="add-tags" class="form-control" placeholder="e.g. nature, wallpaper, sky">
+        </div>
+
+        <div class="form-group">
+          <label for="add-notes">Description / Notes</label>
+          <textarea id="add-notes" class="form-control" placeholder="Optional details..."></textarea>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button id="btn-cancel-add" class="btn btn-secondary">Cancel</button>
+      <button id="btn-submit-add" class="btn btn-primary">Add to Library</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==========================================
+     MODAL: BULK ADD LINKS
+     ========================================== -->
+<div id="modal-bulk" class="modal-backdrop">
+  <div class="modal" style="max-width: 600px;">
+    <div class="modal-header">
+      <h3 class="brand-title" style="font-size: 1.2rem;">Bulk Add Image Links</h3>
+      <button id="btn-close-bulk-modal" class="close-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width: 1.25rem; height: 1.25rem;">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+        Paste image URLs below, one link per line. The app can parse files automatically and populate your library. Works great with 50+ lines of links!
+      </p>
+      <div class="form-group">
+        <label for="bulk-textarea">Paste URLs Here (one per line)</label>
+        <textarea id="bulk-textarea" class="form-control" style="min-height: 140px; font-family: monospace; font-size: 0.8rem;" placeholder="https://example.com/image1.jpg&#10;https://example.com/image2.png&#10;..."></textarea>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 0.75rem; margin: 0.15rem 0;">
+        <div style="flex: 1; height: 1px; background: var(--border-color);"></div>
+        <span style="font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em;">or</span>
+        <div style="flex: 1; height: 1px; background: var(--border-color);"></div>
+      </div>
+
+      <div class="form-group">
+        <label for="bulk-file-input">Upload Multiple Images From Device</label>
+        <input type="file" id="bulk-file-input" accept="image/*" multiple class="form-control" style="padding: 0.4rem;">
+        <div id="bulk-file-count" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.35rem;"></div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="bulk-status">Default Status</label>
+          <select id="bulk-status" class="form-control">
+            <option value="To Review">To Review</option>
+            <option value="Active" selected>Active</option>
+            <option value="Archived">Archived</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="bulk-tags">Default Tags (Comma Separated)</label>
+          <input type="text" id="bulk-tags" class="form-control" placeholder="e.g. bulk-import, artwork">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button id="btn-cancel-bulk" class="btn btn-secondary">Cancel</button>
+      <button id="btn-submit-bulk" class="btn btn-accent">⚡ Import All</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==========================================
+     MODAL: JSON IMPORT
+     ========================================== -->
+<div id="modal-import" class="modal-backdrop">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="brand-title" style="font-size: 1.2rem;">Import Library JSON</h3>
+      <button id="btn-close-import-modal" class="close-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width: 1.25rem; height: 1.25rem;">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+        Drop a previously exported tracker JSON file or paste the JSON text content directly.
+      </p>
+
+      <!-- File upload input -->
+      <div class="form-group" style="margin-bottom: 1rem;">
+        <label>Upload JSON Backup File</label>
+        <input type="file" id="import-file-input" accept=".json" class="form-control" style="padding: 0.4rem;">
+      </div>
+
+      <div class="form-group">
+        <label for="import-textarea">Or Paste JSON Data Content</label>
+        <textarea id="import-textarea" class="form-control" style="min-height: 180px; font-family: monospace; font-size: 0.8rem;" placeholder='[{"url":"...","title":"...","rating":5,"status":"Active","tags":["tag1"]}]'></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button id="btn-cancel-import" class="btn btn-secondary">Cancel</button>
+      <button id="btn-submit-import" class="btn btn-primary">Restore Data</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==========================================
+     MODAL: LIGHTBOX / FULLSCREEN PREVIEW
+     ========================================== -->
+<div id="modal-lightbox" class="modal-backdrop" style="background: rgba(0,0,0,0.92);">
+  <button id="btn-close-lightbox" class="close-btn" style="position: absolute; top: 1.5rem; right: 1.5rem; color: #fff; z-index: 350; background: rgba(0,0,0,0.5); padding: 0.5rem; border-radius: 50%;">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="width: 1.75rem; height: 1.75rem;">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+    </svg>
+  </button>
+  <div class="lightbox-modal">
+    <img id="lightbox-image" class="lightbox-img" src="" alt="Fullscreen preview">
+    <div id="lightbox-caption" class="lightbox-caption"></div>
+  </div>
+</div>
+
+<!-- ==========================================
+     VANILLA JAVASCRIPT LOGIC
+     ========================================== -->
+<script>
+  // ==========================================
+  // SAMPLE DATABASE - 50 BEAUTIFUL HIGH-RES IMAGES
+  // ==========================================
+  const SAMPLE_IMAGES = [
+    {
+      id: "sample-1",
+      title: "Misty Pine Forest",
+      url: "https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=800&q=80",
+      description: "Sun rays breaking through a dense, foggy pine forest in the early morning.",
+      status: "Active",
+      rating: 5,
+      tags: ["nature", "forest", "wallpaper", "misty"],
+      dateAdded: Date.now() - 50 * 3600000
+    },
+    {
+      id: "sample-2",
+      title: "Majestic Mountain Peaks",
+      url: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=800&q=80",
+      description: "Epic aerial view of snow-covered mountain peaks piercing through clouds.",
+      status: "Active",
+      rating: 4,
+      tags: ["nature", "mountains", "landscape", "adventure"],
+      dateAdded: Date.now() - 49 * 3600000
+    },
+    {
+      id: "sample-3",
+      title: "Golden Desert Dunes",
+      url: "https://images.unsplash.com/photo-1509316975850-ff9c5edd0cd9?auto=format&fit=crop&w=800&q=80",
+      description: "Undulating sand dunes glowing gold under a bright afternoon sun.",
+      status: "To Review",
+      rating: 3,
+      tags: ["nature", "desert", "minimal", "warm"],
+      dateAdded: Date.now() - 48 * 3600000
+    },
+    {
+      id: "sample-4",
+      title: "Tropical Beach Paradise",
+      url: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80",
+      description: "Perfect white-sand shoreline lined with palm trees and crystal-clear turquoise waters.",
+      status: "Active",
+      rating: 5,
+      tags: ["nature", "beach", "summer", "ocean"],
+      dateAdded: Date.now() - 47 * 3600000
+    },
+    {
+      id: "sample-5",
+      title: "Autumn Maple Canopy",
+      url: "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=800&q=80",
+      description: "Looking up through bright red and orange autumn leaves in a forest.",
+      status: "Active",
+      rating: 4,
+      tags: ["nature", "autumn", "colors", "red"],
+      dateAdded: Date.now() - 46 * 3600000
+    },
+    {
+      id: "sample-6",
+      title: "Deep Canyon Waterfall",
+      url: "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=800&q=80",
+      description: "Powerful waterfall dropping into a narrow, moss-covered canyon stream.",
+      status: "To Review",
+      rating: 5,
+      tags: ["nature", "waterfall", "green", "canyon"],
+      dateAdded: Date.now() - 45 * 3600000
+    },
+    {
+      id: "sample-7",
+      title: "Rugged Mountain Canyon",
+      url: "https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=800&q=80",
+      description: "A wide, green valley with steep rocky peaks rising in the background.",
+      status: "Archived",
+      rating: 3,
+      tags: ["nature", "valley", "hiking", "green"],
+      dateAdded: Date.now() - 44 * 3600000
+    },
+    {
+      id: "sample-8",
+      title: "Deep Ocean Waves",
+      url: "https://images.unsplash.com/photo-1505118380757-91f5f5632de0?auto=format&fit=crop&w=800&q=80",
+      description: "Sunbeams filtering through the surface of deep, dark blue ocean water.",
+      status: "Active",
+      rating: 4,
+      tags: ["nature", "ocean", "water", "deep-blue"],
+      dateAdded: Date.now() - 43 * 3600000
+    },
+    {
+      id: "sample-9",
+      title: "Eerie Northern Lights",
+      url: "https://images.unsplash.com/photo-1483347756197-71ef80e95f73?auto=format&fit=crop&w=800&q=80",
+      description: "Vibrant green aurora borealis swirling above a snow-covered pine forest.",
+      status: "Active",
+      rating: 5,
+      tags: ["nature", "aurora", "night-sky", "green"],
+      dateAdded: Date.now() - 42 * 3600000
+    },
+    {
+      id: "sample-10",
+      title: "Vast Lavender Fields",
+      url: "https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=800&q=80",
+      description: "Endless rows of purple lavender stretching towards a golden sunset sky.",
+      status: "Active",
+      rating: 4,
+      tags: ["nature", "purple", "flowers", "sunset"],
+      dateAdded: Date.now() - 41 * 3600000
+    },
+    {
+      id: "sample-11",
+      title: "Tokyo Cyberpunk Streets",
+      url: "https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=800&q=80",
+      description: "Neon signs glowing in Tokyo night rain. A classic cyberpunk aesthetic.",
+      status: "Active",
+      rating: 5,
+      tags: ["architecture", "tokyo", "cyberpunk", "neon"],
+      dateAdded: Date.now() - 40 * 3600000
+    },
+    {
+      id: "sample-12",
+      title: "Luxury Modern Villa",
+      url: "https://images.unsplash.com/photo-1613490493576-7fde63acd811?auto=format&fit=crop&w=800&q=80",
+      description: "Minimalist concrete modern villa with a glowing swimming pool at dusk.",
+      status: "To Review",
+      rating: 4,
+      tags: ["architecture", "modern", "luxury", "minimal"],
+      dateAdded: Date.now() - 39 * 3600000
+    },
+    {
+      id: "sample-13",
+      title: "Gothic Cathedral Spires",
+      url: "https://images.unsplash.com/photo-1548625361-155deee223d2?auto=format&fit=crop&w=800&q=80",
+      description: "Beautiful low-angle view of gothic spires rising into a misty sky.",
+      status: "Active",
+      rating: 4,
+      tags: ["architecture", "cathedral", "gothic", "details"],
+      dateAdded: Date.now() - 38 * 3600000
+    },
+    {
+      id: "sample-14",
+      title: "Concrete Spiral Staircase",
+      url: "https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=800&q=80",
+      description: "Symmetrical top-down view of a modern brutalist concrete spiral stairwell.",
+      status: "Archived",
+      rating: 3,
+      tags: ["architecture", "brutalist", "spiral", "symmetry"],
+      dateAdded: Date.now() - 37 * 3600000
+    },
+    {
+      id: "sample-15",
+      title: "Glass Skyscraper Reflections",
+      url: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&q=80",
+      description: "Sun glinting off the reflective blue panels of a soaring business tower.",
+      status: "Active",
+      rating: 4,
+      tags: ["architecture", "skyscraper", "glass", "sky"],
+      dateAdded: Date.now() - 36 * 3600000
+    },
+    {
+      id: "sample-16",
+      title: "Concrete Minimal House",
+      url: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80",
+      description: "Clean modern design using exposed concrete, glass panels, and warm woods.",
+      status: "Active",
+      rating: 5,
+      tags: ["architecture", "concrete", "minimalist", "home"],
+      dateAdded: Date.now() - 35 * 3600000
+    },
+    {
+      id: "sample-17",
+      title: "Eiffel Tower Sunset",
+      url: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=800&q=80",
+      description: "The Eiffel tower framed by orange and pink sunset clouds over Paris.",
+      status: "Active",
+      rating: 4,
+      tags: ["architecture", "paris", "sunset", "romantic"],
+      dateAdded: Date.now() - 34 * 3600000
+    },
+    {
+      id: "sample-18",
+      title: "Cyberpunk Alleyway Glow",
+      url: "https://images.unsplash.com/photo-1515621061946-eff1c2a352bd?auto=format&fit=crop&w=800&q=80",
+      description: "A narrow alleyway glowing with violet, magenta and cyan streetlights.",
+      status: "To Review",
+      rating: 3,
+      tags: ["architecture", "cyberpunk", "neon", "violet"],
+      dateAdded: Date.now() - 33 * 3600000
+    },
+    {
+      id: "sample-19",
+      title: "Historic Stone Arch Bridge",
+      url: "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=800&q=80",
+      description: "Old European stone bridge over a quiet, green canal reflecting autumn trees.",
+      status: "Active",
+      rating: 4,
+      tags: ["architecture", "bridge", "classic", "history"],
+      dateAdded: Date.now() - 32 * 3600000
+    },
+    {
+      id: "sample-20",
+      title: "Golden Cathedral Dome",
+      url: "https://images.unsplash.com/photo-1433832597026-6371910b9061?auto=format&fit=crop&w=800&q=80",
+      description: "Fascinating details looking straight up into a cathedral dome decorated in gold leaf.",
+      status: "Active",
+      rating: 5,
+      tags: ["architecture", "dome", "cathedral", "gold"],
+      dateAdded: Date.now() - 31 * 3600000
+    },
+    {
+      id: "sample-21",
+      title: "Vibrant Orion Nebula",
+      url: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80",
+      description: "Deep space photograph showing gas clouds of indigo, purple and orange in stellar nursery.",
+      status: "Active",
+      rating: 5,
+      tags: ["space", "nebula", "sci-fi", "galaxy"],
+      dateAdded: Date.now() - 30 * 3600000
+    },
+    {
+      id: "sample-22",
+      title: "Astronaut on the Moon",
+      url: "https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?auto=format&fit=crop&w=800&q=80",
+      description: "Astronaut standing on the lunar surface with the earth rising in black space background.",
+      status: "Active",
+      rating: 5,
+      tags: ["space", "astronaut", "moon", "nasa"],
+      dateAdded: Date.now() - 29 * 3600000
+    },
+    {
+      id: "sample-23",
+      title: "Total Solar Eclipse",
+      url: "https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?auto=format&fit=crop&w=800&q=80",
+      description: "The moon completely blocking the sun, revealing a glowing solar corona.",
+      status: "To Review",
+      rating: 4,
+      tags: ["space", "eclipse", "sun", "corona"],
+      dateAdded: Date.now() - 28 * 3600000
+    },
+    {
+      id: "sample-24",
+      title: "Majestic Spiral Galaxy",
+      url: "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?auto=format&fit=crop&w=800&q=80",
+      description: "Face-on spiral galaxy showing bright blue clusters of stars in its curving arms.",
+      status: "Active",
+      rating: 5,
+      tags: ["space", "galaxy", "stars", "universe"],
+      dateAdded: Date.now() - 27 * 3600000
+    },
+    {
+      id: "sample-25",
+      title: "Saturn and Its Rings",
+      url: "https://images.unsplash.com/photo-1545156521-77bd85671d30?auto=format&fit=crop&w=800&q=80",
+      description: "Close-up rendering of Saturn with detailed ring divisions against cosmic dust.",
+      status: "Active",
+      rating: 4,
+      tags: ["space", "saturn", "planets", "astronomy"],
+      dateAdded: Date.now() - 26 * 3600000
+    },
+    {
+      id: "sample-26",
+      title: "Red Planet Mars Horizon",
+      url: "https://images.unsplash.com/photo-1614728894747-a83421e2b9c9?auto=format&fit=crop&w=800&q=80",
+      description: "Dry, dusty orange plains of Mars under a thin atmospheric glow.",
+      status: "To Review",
+      rating: 3,
+      tags: ["space", "mars", "red", "desolate"],
+      dateAdded: Date.now() - 25 * 3600000
+    },
+    {
+      id: "sample-27",
+      title: "Milky Way Core Exposure",
+      url: "https://images.unsplash.com/photo-1506318137071-a8e063b4bec0?auto=format&fit=crop&w=800&q=80",
+      description: "Long exposure photo of the night sky showing the bright, dusty center of our galaxy.",
+      status: "Active",
+      rating: 5,
+      tags: ["space", "milkyway", "astrophotography", "stars"],
+      dateAdded: Date.now() - 24 * 3600000
+    },
+    {
+      id: "sample-28",
+      title: "Satellite Orbiting Earth",
+      url: "https://images.unsplash.com/photo-1454789548928-9efd52dc4031?auto=format&fit=crop&w=800&q=80",
+      description: "Communications satellite sailing over the curved, glowing horizon of the Earth.",
+      status: "Archived",
+      rating: 3,
+      tags: ["space", "satellite", "technology", "orbit"],
+      dateAdded: Date.now() - 23 * 3600000
+    },
+    {
+      id: "sample-29",
+      title: "Deep Space Field",
+      url: "https://images.unsplash.com/photo-1518364538800-6bcb3f25da49?auto=format&fit=crop&w=800&q=80",
+      description: "Thousands of distant galaxies appearing as tiny specs of light in black infinity.",
+      status: "Active",
+      rating: 4,
+      tags: ["space", "galaxies", "cosmic", "deepspace"],
+      dateAdded: Date.now() - 22 * 3600000
+    },
+    {
+      id: "sample-30",
+      title: "Aurora Australis From Space",
+      url: "https://images.unsplash.com/photo-1538370965046-79c0d6907d47?auto=format&fit=crop&w=800&q=80",
+      description: "Green glowing aurora bands hovering over Earth's atmosphere seen from orbit.",
+      status: "Active",
+      rating: 5,
+      tags: ["space", "aurora", "earth", "view"],
+      dateAdded: Date.now() - 21 * 3600000
+    },
+    {
+      id: "sample-31",
+      title: "Retro Tech Setup",
+      url: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=800&q=80",
+      description: "Clean desktop featuring retro computers, gaming consoles, and synth wave decor.",
+      status: "Active",
+      rating: 4,
+      tags: ["tech", "setup", "retro", "keyboard"],
+      dateAdded: Date.now() - 20 * 3600000
+    },
+    {
+      id: "sample-32",
+      title: "Syntax Code Terminal",
+      url: "https://images.unsplash.com/photo-1542831371-29b0f74f9713?auto=format&fit=crop&w=800&q=80",
+      description: "Colorful javascript code glowing on a developer's black display screen.",
+      status: "Active",
+      rating: 4,
+      tags: ["tech", "coding", "javascript", "developer"],
+      dateAdded: Date.now() - 19 * 3600000
+    },
+    {
+      id: "sample-33",
+      title: "Macro Motherboard Circuit",
+      url: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80",
+      description: "Detail shot of golden trace lines and green solder mask on a modern PCB board.",
+      status: "To Review",
+      rating: 3,
+      tags: ["tech", "circuits", "hardware", "cpu"],
+      dateAdded: Date.now() - 18 * 3600000
+    },
+    {
+      id: "sample-34",
+      title: "VR Headset Glow",
+      url: "https://images.unsplash.com/photo-1593508512255-86ab42a8e620?auto=format&fit=crop&w=800&q=80",
+      description: "Virtual reality headset lit up by bright magenta and blue ambient lights.",
+      status: "Active",
+      rating: 5,
+      tags: ["tech", "vr", "gaming", "neon"],
+      dateAdded: Date.now() - 17 * 3600000
+    },
+    {
+      id: "sample-35",
+      title: "Mechanical Custom Keyboard",
+      url: "https://images.unsplash.com/photo-1618384887929-16ec33fab9ef?auto=format&fit=crop&w=800&q=80",
+      description: "A gorgeous ortholinear mechanical keyboard with custom slate keycaps.",
+      status: "Active",
+      rating: 5,
+      tags: ["tech", "keyboard", "minimal", "desk"],
+      dateAdded: Date.now() - 16 * 3600000
+    },
+    {
+      id: "sample-36",
+      title: "Minimalist Smart Watch",
+      url: "https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?auto=format&fit=crop&w=800&q=80",
+      description: "Sleek round smart watch showing fitness indicators, resting on a white desk.",
+      status: "Archived",
+      rating: 3,
+      tags: ["tech", "watch", "smart", "lifestyle"],
+      dateAdded: Date.now() - 15 * 3600000
+    },
+    {
+      id: "sample-37",
+      title: "Classic Cassette Tape",
+      url: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=800&q=80",
+      description: "Retro transparent audio cassette tape laying on a wood surface.",
+      status: "Active",
+      rating: 4,
+      tags: ["tech", "retro", "audio", "vintage"],
+      dateAdded: Date.now() - 14 * 3600000
+    },
+    {
+      id: "sample-38",
+      title: "Cyber Desk Command Center",
+      url: "https://images.unsplash.com/photo-1563089145-599997674d42?auto=format&fit=crop&w=800&q=80",
+      description: "Multiple wide monitors shining vibrant violet light in a dark workspace.",
+      status: "To Review",
+      rating: 4,
+      tags: ["tech", "monitors", "cyberpunk", "desk"],
+      dateAdded: Date.now() - 13 * 3600000
+    },
+    {
+      id: "sample-39",
+      title: "Sound Mixer Console",
+      url: "https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?auto=format&fit=crop&w=800&q=80",
+      description: "Hundreds of buttons, knobs, and faders glowing in a professional music studio.",
+      status: "Active",
+      rating: 5,
+      tags: ["tech", "music", "studio", "audio"],
+      dateAdded: Date.now() - 12 * 3600000
+    },
+    {
+      id: "sample-40",
+      title: "Robotic Artificial Hand",
+      url: "https://images.unsplash.com/photo-1589254065878-42c9da997008?auto=format&fit=crop&w=800&q=80",
+      description: "Cybernetic prosthetic hand demonstrating complex articulation of joints.",
+      status: "Active",
+      rating: 5,
+      tags: ["tech", "robotics", "future", "ai"],
+      dateAdded: Date.now() - 11 * 3600000
+    },
+    {
+      id: "sample-41",
+      title: "Majestic Male Lion",
+      url: "https://images.unsplash.com/photo-1614027164847-1b2809eb7b9b?auto=format&fit=crop&w=800&q=80",
+      description: "Powerful close-up portrait of a male lion looking sideways with glowing golden eyes.",
+      status: "Active",
+      rating: 5,
+      tags: ["animals", "lion", "wildlife", "safari"],
+      dateAdded: Date.now() - 10 * 3600000
+    },
+    {
+      id: "sample-42",
+      title: "Fox in Deep Snow",
+      url: "https://images.unsplash.com/photo-1474511320723-9a56873867b5?auto=format&fit=crop&w=800&q=80",
+      description: "A bright orange red fox pausing amidst clean white winter snow drifts.",
+      status: "Active",
+      rating: 5,
+      tags: ["animals", "fox", "winter", "cold"],
+      dateAdded: Date.now() - 9 * 3600000
+    },
+    {
+      id: "sample-43",
+      title: "Swimming Sea Turtle",
+      url: "https://images.unsplash.com/photo-1437622368342-7a3d73a34c8f?auto=format&fit=crop&w=800&q=80",
+      description: "Green sea turtle gliding effortlessly through clear ocean water above coral reefs.",
+      status: "To Review",
+      rating: 4,
+      tags: ["animals", "turtle", "ocean", "swim"],
+      dateAdded: Date.now() - 8 * 3600000
+    },
+    {
+      id: "sample-44",
+      title: "Red Panda in Tree",
+      url: "https://images.unsplash.com/photo-1546182990-dffeafbe841d?auto=format&fit=crop&w=800&q=80",
+      description: "Curious red panda looking down from a high branch in dense green trees.",
+      status: "Active",
+      rating: 5,
+      tags: ["animals", "redpanda", "cute", "tree"],
+      dateAdded: Date.now() - 7 * 3600000
+    },
+    {
+      id: "sample-45",
+      title: "Majestic Forest Stag",
+      url: "https://images.unsplash.com/photo-1549488344-1f9b8d2bd1f3?auto=format&fit=crop&w=800&q=80",
+      description: "Large deer showing massive antlers standing proud in early morning fog.",
+      status: "Active",
+      rating: 4,
+      tags: ["animals", "deer", "stag", "forest"],
+      dateAdded: Date.now() - 6 * 3600000
+    },
+    {
+      id: "sample-46",
+      title: "Siberian Wolf Pack",
+      url: "https://images.unsplash.com/photo-1590420485404-f86d22b8abf8?auto=format&fit=crop&w=800&q=80",
+      description: "A pack of wolves alertly looking in the same direction in a cold wilderness.",
+      status: "To Review",
+      rating: 4,
+      tags: ["animals", "wolf", "wild", "pack"],
+      dateAdded: Date.now() - 5 * 3600000
+    },
+    {
+      id: "sample-47",
+      title: "Hovering Hummingbird",
+      url: "https://images.unsplash.com/photo-1552410260-0fd9b577afa6?auto=format&fit=crop&w=800&q=80",
+      description: "Macro capture of a green hummingbird feeding on a bright pink flower.",
+      status: "Active",
+      rating: 5,
+      tags: ["animals", "bird", "hummingbird", "macro"],
+      dateAdded: Date.now() - 4 * 3600000
+    },
+    {
+      id: "sample-48",
+      title: "Colorful Common Kingfisher",
+      url: "https://images.unsplash.com/photo-1520848315518-b991dd16a625?auto=format&fit=crop&w=800&q=80",
+      description: "Vibrant blue and orange kingfisher perched on a twig looking for fish.",
+      status: "Active",
+      rating: 4,
+      tags: ["animals", "bird", "kingfisher", "river"],
+      dateAdded: Date.now() - 3 * 3600000
+    },
+    {
+      id: "sample-49",
+      title: "Staring Snowy Owl",
+      url: "https://images.unsplash.com/photo-1509248961158-e54f6934749c?auto=format&fit=crop&w=800&q=80",
+      description: "Piercing yellow eyes of a white snowy owl looking directly into camera.",
+      status: "To Review",
+      rating: 5,
+      tags: ["animals", "owl", "white", "portrait"],
+      dateAdded: Date.now() - 2 * 3600000
+    },
+    {
+      id: "sample-50",
+      title: "Sleek Black Cat",
+      url: "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=800&q=80",
+      description: "Beautiful close-up of a black domestic cat with luminous green eyes.",
+      status: "Active",
+      rating: 5,
+      tags: ["animals", "cat", "blackcat", "cozy"],
+      dateAdded: Date.now() - 1 * 3600000
+    }
+  ];
+
+  // ==========================================
+  // INDEXEDDB & COMPRESSION PERSISTENCE LAYER
+  // ==========================================
+  let databaseArray = []; // Global relational envelope array
+
+  // Native Gzip Compression & Decompression Utilities
+  async function compressString(str) {
+    const blob = new Blob([str], { type: 'application/json' });
+    const compressedStream = blob.stream().pipeThrough(new CompressionStream('gzip'));
+    return await new Response(compressedStream).blob();
+  }
+
+  async function decompressBlob(blob) {
+    const ds = new DecompressionStream('gzip');
+    const decompressedStream = blob.stream().pipeThrough(ds);
+    return await new Response(decompressedStream).text();
+  }
+
+  const DB_NAME = 'AetherLensDB';
+  const DB_VERSION = 2; // Upgraded to v2
+  const RECORDS_STORE = 'records';
+  const SYNC_QUEUE_STORE = 'syncQueue';
+  const SETTINGS_STORE = 'settings';
+  let dbInstance = null;
+
+  function openDB() {
+    return new Promise((resolve, reject) => {
+      if (dbInstance) {
+        resolve(dbInstance);
+        return;
+      }
+      const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+      request.onupgradeneeded = (event) => {
+        const db = event.target.result;
+        if (!db.objectStoreNames.contains(RECORDS_STORE)) {
+          db.createObjectStore(RECORDS_STORE, { keyPath: 'id' });
+        }
+        if (!db.objectStoreNames.contains(SYNC_QUEUE_STORE)) {
+          db.createObjectStore(SYNC_QUEUE_STORE, { keyPath: 'id' });
+        }
+        if (!db.objectStoreNames.contains(SETTINGS_STORE)) {
+          db.createObjectStore(SETTINGS_STORE, { keyPath: 'key' });
+        }
+      };
+
+      request.onsuccess = (event) => {
+        dbInstance = event.target.result;
+        resolve(dbInstance);
+      };
+
+      request.onerror = (event) => {
+        reject(event.target.error);
+      };
+    });
+  }
+
+  // Database migration from V1 (images store) to V2 (records store)
+  async function checkAndMigrateDatabase(db) {
+    const migrationKey = 'aetherlens_migrated_v2';
+    if (localStorage.getItem(migrationKey) === 'true') {
+      return;
+    }
+
+    if (!db.objectStoreNames.contains('images')) {
+      localStorage.setItem(migrationKey, 'true');
+      return;
+    }
+
+    console.log("Migrating database from v1 to v2...");
+    try {
+      const oldImages = await new Promise((resolve, reject) => {
+        const tx = db.transaction('images', 'readonly');
+        const store = tx.objectStore('images');
+        const req = store.getAll();
+        req.onsuccess = () => resolve(req.result || []);
+        req.onerror = () => reject(req.error);
+      });
+
+      const oldSettingsRows = await new Promise((resolve, reject) => {
+        const tx = db.transaction(SETTINGS_STORE, 'readonly');
+        const store = tx.objectStore(SETTINGS_STORE);
+        const req = store.getAll();
+        req.onsuccess = () => resolve(req.result || []);
+        req.onerror = () => reject(req.error);
+      });
+
+      const oldSettingsMap = {};
+      oldSettingsRows.forEach(row => {
+        oldSettingsMap[row.key] = row.value;
+      });
+
+      const tx = db.transaction([RECORDS_STORE, SETTINGS_STORE], 'readwrite');
+      const recordsStore = tx.objectStore(RECORDS_STORE);
+      const now = Date.now();
+
+      oldImages.forEach(img => {
+        const record = {
+          id: img.id,
+          table: 'images',
+          updatedAt: img.dateAdded || now,
+          deleted: false,
+          data: {
+            title: img.title || "Untitled",
+            url: img.url || "",
+            status: img.status || "Active",
+            rating: Number(img.rating) || 3,
+            tags: Array.isArray(img.tags) ? img.tags : [],
+            description: img.description || "",
+            favorite: !!img.favorite,
+            dateAdded: img.dateAdded || now
+          }
+        };
+        recordsStore.put(record);
+      });
+
+      if (oldSettingsMap.viewMode) {
+        recordsStore.put({
+          id: 'settings_viewMode',
+          table: 'settings',
+          updatedAt: now,
+          deleted: false,
+          data: { value: oldSettingsMap.viewMode }
+        });
+      }
+      if (oldSettingsMap.theme) {
+        recordsStore.put({
+          id: 'settings_theme',
+          table: 'settings',
+          updatedAt: now,
+          deleted: false,
+          data: { value: oldSettingsMap.theme }
+        });
+      }
+
+      await new Promise((resolve, reject) => {
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+
+      const clearTx = db.transaction('images', 'readwrite');
+      clearTx.objectStore('images').clear();
+      await new Promise((resolve) => { clearTx.oncomplete = resolve; });
+
+      localStorage.setItem(migrationKey, 'true');
+      console.log("Migration complete!");
+    } catch (err) {
+      console.error("Migration error:", err);
+    }
+  }
+
+  // Persist entire databaseArray to IndexedDB
+  async function saveDatabaseArray(saveLocal = true) {
+    if (!saveLocal) return;
+    try {
+      const db = await openDB();
+      const tx = db.transaction(RECORDS_STORE, 'readwrite');
+      const store = tx.objectStore(RECORDS_STORE);
+      store.clear();
+      databaseArray.forEach(r => store.put(r));
+      await new Promise((resolve, reject) => {
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    } catch (err) {
+      console.error('Failed to save databaseArray to IndexedDB:', err);
+    }
+  }
+
+  // Load databaseArray from IndexedDB
+  async function loadFromLocalStorage() {
+    try {
+      const db = await openDB();
+      await checkAndMigrateDatabase(db);
+
+      const records = await new Promise((resolve, reject) => {
+        const tx = db.transaction(RECORDS_STORE, 'readonly');
+        const store = tx.objectStore(RECORDS_STORE);
+        const req = store.getAll();
+        req.onsuccess = () => resolve(req.result || []);
+        req.onerror = () => reject(req.error);
+      });
+
+      databaseArray = records;
+
+      let updated = false;
+      let themeRecord = databaseArray.find(r => r.id === 'settings_theme');
+      if (!themeRecord) {
+        themeRecord = {
+          id: 'settings_theme',
+          table: 'settings',
+          updatedAt: 0,
+          deleted: false,
+          data: { value: 'dark' }
+        };
+        databaseArray.push(themeRecord);
+        updated = true;
+      }
+
+      let viewModeRecord = databaseArray.find(r => r.id === 'settings_viewMode');
+      if (!viewModeRecord) {
+        viewModeRecord = {
+          id: 'settings_viewMode',
+          table: 'settings',
+          updatedAt: 0,
+          deleted: false,
+          data: { value: 'grid' }
+        };
+        databaseArray.push(viewModeRecord);
+        updated = true;
+      }
+
+      if (updated) {
+        await saveDatabaseArray(true);
+      }
+
+      state.theme = themeRecord.data.value;
+      state.viewMode = viewModeRecord.data.value;
+
+      state.images = databaseArray
+        .filter(r => r.table === 'images' && !r.deleted)
+        .map(r => ({
+          id: r.id,
+          title: r.data.title,
+          url: r.data.url,
+          status: r.data.status,
+          rating: r.data.rating,
+          tags: r.data.tags,
+          description: r.data.description,
+          favorite: !!r.data.favorite,
+          dateAdded: r.data.dateAdded || r.updatedAt
+        }));
+
+      const versionInfo = await getSettingsValue('sync_versions');
+      if (versionInfo) {
+        localVersion = versionInfo.localVersion || 0;
+        remoteVersion = versionInfo.remoteVersion || 0;
+      }
+
+      applyTheme(state.theme);
+      setViewMode(state.viewMode);
+
+    } catch (err) {
+      console.error('IndexedDB load error:', err);
+      applyTheme('dark');
+      setViewMode('grid');
+    }
+  }
+
+  // Wipe IndexedDB storage tables
+  async function clearIndexedDbStorage() {
+    try {
+      const db = await openDB();
+      const tx = db.transaction([RECORDS_STORE, SYNC_QUEUE_STORE, SETTINGS_STORE], 'readwrite');
+      tx.objectStore(RECORDS_STORE).clear();
+      tx.objectStore(SYNC_QUEUE_STORE).clear();
+      tx.objectStore(SETTINGS_STORE).clear();
+      await new Promise((resolve, reject) => {
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+      databaseArray = [];
+    } catch (err) {
+      console.error('IndexedDB clear error:', err);
+    }
+  }
+
+  // Key-value settings store helpers
+  async function getSettingsValue(key) {
+    try {
+      const db = await openDB();
+      return await new Promise((resolve, reject) => {
+        const tx = db.transaction(SETTINGS_STORE, 'readonly');
+        const store = tx.objectStore(SETTINGS_STORE);
+        const req = store.get(key);
+        req.onsuccess = () => resolve(req.result ? req.result.value : null);
+        req.onerror = () => reject(req.error);
+      });
+    } catch (e) {
+      return null;
+    }
+  }
+
+  async function setSettingsValue(key, value) {
+    try {
+      const db = await openDB();
+      const tx = db.transaction(SETTINGS_STORE, 'readwrite');
+      tx.objectStore(SETTINGS_STORE).put({ key, value });
+      await new Promise((resolve, reject) => {
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    } catch (e) {
+      console.error("Failed to write setting:", key, e);
+    }
+  }
+
+  // Local Sync Queue Store management helpers
+  async function addToSyncQueue(id) {
+    try {
+      const db = await openDB();
+      const tx = db.transaction(SYNC_QUEUE_STORE, 'readwrite');
+      tx.objectStore(SYNC_QUEUE_STORE).put({ id, timestamp: Date.now() });
+      await new Promise((resolve, reject) => {
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    } catch (e) {
+      console.error("Failed to add to sync queue:", id, e);
+    }
+  }
+
+  async function getSyncQueue() {
+    try {
+      const db = await openDB();
+      return await new Promise((resolve, reject) => {
+        const tx = db.transaction(SYNC_QUEUE_STORE, 'readonly');
+        const store = tx.objectStore(SYNC_QUEUE_STORE);
+        const req = store.getAll();
+        req.onsuccess = () => resolve(req.result || []);
+        req.onerror = () => reject(req.error);
+      });
+    } catch (e) {
+      return [];
+    }
+  }
+
+  async function clearSyncQueue() {
+    try {
+      const db = await openDB();
+      const tx = db.transaction(SYNC_QUEUE_STORE, 'readwrite');
+      tx.objectStore(SYNC_QUEUE_STORE).clear();
+      await new Promise((resolve, reject) => {
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    } catch (e) {
+      console.error("Failed to clear sync queue:", e);
+    }
+  }
+
+  // ==========================================
+  // SECTION 2: TOKEN-CACHED REALTIME CLOUD SYNC ENGINE
+  // ==========================================
+  const CLIENT_ID = '305632493984-9q07n0i677ku1btdds1scke8pam5ag3s.apps.googleusercontent.com';
+  const SCOPES = 'https://www.googleapis.com/auth/drive.appdata';
+
+  const AUTH_LINKED_KEY = 'aetherlens_has_linked_google';
+  const AUTH_TOKEN_KEY = 'aetherlens_google_access_token';
+  const AUTH_EXPIRY_KEY = 'aetherlens_google_token_expiry';
+
+  let tokenClient;
+  let gapiInited = false;
+  let gisimInited = false;
+  let accessToken = null;
+  let cloudFileId = null;
+  let silentRefreshTimeout = null;
+  let isRefreshingToken = false;
+  let needsManualReconnect = false;
+
+  let syncDebounceTimeout = null;
+  let isSyncingInProgress = false;
+  let hasPendingSyncRequest = false;
+
+  let currentSyncStatusText = "";
+  let currentSyncStatusType = "";
+  let syncTimerId = null;
+  let lastSyncTime = null;
+
+  let localVersion = 0;
+  let remoteVersion = 0;
+
+  function updateRelativeSyncStatus() {
+    if (!lastSyncTime) return;
+    const el = document.getElementById('syncStatusIndicator');
+    if (!el) return;
+
+    const diff = Date.now() - lastSyncTime;
+    let newText = "";
+    if (diff < 30 * 1000) {
+      newText = "✅ Synced Just Now";
+    } else if (diff < 120 * 1000) {
+      newText = "☁️ Last synced 1 min ago";
+    } else {
+      const mins = Math.floor(diff / 60000);
+      newText = `☁️ Last synced ${mins} min ago`;
+    }
+
+    const currentText = el.innerText;
+    const isShowingSyncedStatus = currentText === "✅ Synced Just Now" || currentText.startsWith("☁️ Last synced");
+    if (isShowingSyncedStatus && currentText !== newText) {
+      el.innerText = newText;
+      currentSyncStatusText = newText;
+    }
+  }
+
+  function setSyncStatus(text, type = '', isNewSync = false) {
+    currentSyncStatusText = text;
+    currentSyncStatusType = type;
+    const el = document.getElementById('syncStatusIndicator');
+    if (el) {
+      if (!text) {
+        el.style.display = 'none';
+      } else {
+        el.style.display = 'inline-flex';
+        el.innerText = text;
+        el.className = 'sync-status ' + type;
+
+        if (type !== 'error') {
+          el.style.cursor = 'default';
+          el.onclick = null;
+        } else {
+          el.style.cursor = "pointer";
+          el.onclick = () => {
+            if (needsManualReconnect) {
+              setSyncStatus("Connecting...", "active");
+              tokenClient.requestAccessToken({ prompt: '' });
+            } else {
+              setSyncStatus("Syncing...", "active");
+              pullAndMergeCloudData();
+            }
+          };
+        }
+      }
+    }
+
+    if (isNewSync) {
+      lastSyncTime = Date.now();
+      if (!syncTimerId) {
+        syncTimerId = setInterval(updateRelativeSyncStatus, 5000);
+      }
+    } else {
+      const isSyncedText = text === "✅ Synced Just Now" || text.startsWith("☁️ Last synced");
+      if (syncTimerId && !isSyncedText) {
+        clearInterval(syncTimerId);
+        syncTimerId = null;
+        lastSyncTime = null;
+      }
+    }
+  }
+
+  function gapiLoaded() {
+    gapi.load('client', async () => {
+      await gapi.client.init({ discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'] });
+      gapiInited = true;
+      evaluateRoutingSession();
+    });
+  }
+
+  function gisLoaded() {
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: CLIENT_ID,
+      scope: SCOPES,
+      callback: async (resp) => {
+        isRefreshingToken = false;
+        if (silentRefreshTimeout) {
+          clearTimeout(silentRefreshTimeout);
+          silentRefreshTimeout = null;
+        }
+
+        if (resp.error !== undefined) {
+          needsManualReconnect = true;
+          triggerReconnectState();
+          return;
+        }
+
+        needsManualReconnect = false;
+        accessToken = resp.access_token;
+        gapi.client.setToken({ access_token: accessToken });
+
+        localStorage.setItem(AUTH_TOKEN_KEY, accessToken);
+        localStorage.setItem(AUTH_EXPIRY_KEY, (Date.now() + (resp.expires_in * 1000)).toString());
+        localStorage.setItem(AUTH_LINKED_KEY, 'true');
+
+        updateAuthUI(true);
+        setSyncStatus("✅ Synced Just Now", "active", true);
+
+        await pullAndMergeCloudData();
+      },
+    });
+    gisimInited = true;
+    evaluateRoutingSession();
+  }
+  window.addEventListener('load', () => { gapiLoaded(); gisLoaded(); });
+
+  function evaluateRoutingSession() {
+    if (!gapiInited || !gisimInited) return;
+
+    if (localStorage.getItem(AUTH_LINKED_KEY) === 'true') {
+      const cachedToken = localStorage.getItem(AUTH_TOKEN_KEY);
+      const expiry = parseInt(localStorage.getItem(AUTH_EXPIRY_KEY) || '0');
+
+      if (cachedToken && Date.now() < expiry) {
+        accessToken = cachedToken;
+        gapi.client.setToken({ access_token: accessToken });
+        updateAuthUI(true);
+        setSyncStatus("✅ Synced Just Now", "active", true);
+        pullAndMergeCloudData();
+      } else {
+        if (isRefreshingToken) return;
+
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
+        updateAuthUI(true);
+
+        if (isMobile) {
+          needsManualReconnect = true;
+          triggerReconnectState();
+        } else {
+          isRefreshingToken = true;
+          setSyncStatus("Reconnecting...", "active");
+
+          silentRefreshTimeout = setTimeout(() => {
+            console.warn("Silent refresh timed out. Forcing manual reconnect button.");
+            isRefreshingToken = false;
+            needsManualReconnect = true;
+            triggerReconnectState();
+          }, 4000);
+
+          tokenClient.requestAccessToken({ prompt: 'none' });
+        }
+      }
+    } else {
+      updateAuthUI(false);
+    }
+  }
+
+  function triggerReconnectState() {
+    setSyncStatus("Session Expired - Tap to Reconnect 🔄", "error");
+  }
+
+  function handleAuthFailure() {
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+    updateAuthUI(false);
+  }
+
+  function updateAuthUI(isConnected) {
+    const authBtn = document.getElementById('authBtn');
+    if (!authBtn) return;
+    authBtn.disabled = false;
+
+    if (isConnected) {
+      authBtn.textContent = 'Disconnect';
+      authBtn.className = 'btn btn-secondary btn-danger-link';
+    } else {
+      authBtn.textContent = 'Connect Drive';
+      authBtn.className = 'btn btn-secondary';
+      setSyncStatus("", "");
+    }
+  }
+
+  function handleAuthClick() {
+    if (localStorage.getItem(AUTH_LINKED_KEY) === 'true') {
+      accessToken = null;
+      isRefreshingToken = false;
+      needsManualReconnect = false;
+
+      localStorage.setItem(AUTH_LINKED_KEY, 'false');
+      localStorage.removeItem(AUTH_TOKEN_KEY);
+      localStorage.removeItem(AUTH_EXPIRY_KEY);
+
+      updateAuthUI(false);
+      renderCatalog();
+    } else {
+      if (!gapiInited || !gisimInited) return alert("System booting. Please retry in a moment.");
+      setSyncStatus("Connecting...", "active");
+      tokenClient.requestAccessToken({ prompt: 'select_account consent' });
+    }
+  }
+
+  // PULL AND MERGE CLOUD DATA (with Manifest version checks and compression)
+  async function pullAndMergeCloudData() {
+    if (!accessToken) return false;
+    try {
+      const response = await gapi.client.drive.files.list({
+        q: "name = 'aetherlens_backup.gz' and trashed = false",
+        spaces: 'appDataFolder',
+        fields: 'files(id, name, appProperties)'
+      });
+
+      const files = response.result.files;
+      cloudFileId = files.length > 0 ? files[0].id : null;
+
+      let success = true;
+      if (cloudFileId) {
+        const fileMeta = files[0];
+        const remoteVer = parseInt(fileMeta.appProperties?.dbVersion || '0');
+        remoteVersion = remoteVer;
+
+        const localQueue = await getSyncQueue();
+
+        // 1. MANIFEST VERSION CHECK
+        if (remoteVersion === localVersion && localQueue.length === 0) {
+          setSyncStatus("✅ Synced Just Now", "active", true);
+          return true;
+        }
+
+        // 2. DOWNLOAD & DECOMPRESS FILE (if remote has newer version)
+        let remoteRecords = [];
+        if (remoteVersion > localVersion) {
+          setSyncStatus("Downloading Cloud...", "active");
+          const downloadResp = await fetch(`https://www.googleapis.com/drive/v3/files/${cloudFileId}?alt=media`, {
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+          });
+          if (!downloadResp.ok) throw new Error('Download failed');
+          const blob = await downloadResp.blob();
+          const jsonText = await decompressBlob(blob);
+          const remotePayload = JSON.parse(jsonText);
+          remoteRecords = remotePayload.records || [];
+        } else {
+          remoteRecords = databaseArray;
+        }
+
+        // 3. MERGE PROCESS (Conflict Resolution based on updatedAt)
+        const mergedMap = new Map();
+        remoteRecords.forEach(item => mergedMap.set(item.id, item));
+
+        let localHasNewerEdits = (localQueue.length > 0) || (localVersion > remoteVersion);
+        databaseArray.forEach(localItem => {
+          const cloudItem = mergedMap.get(localItem.id);
+          if (!cloudItem || localItem.updatedAt > (cloudItem.updatedAt || 0)) {
+            mergedMap.set(localItem.id, localItem);
+            localHasNewerEdits = true;
+          }
+        });
+
+        const finalMergedRecords = Array.from(mergedMap.values());
+        databaseArray = finalMergedRecords;
+
+        await saveDatabaseArray(true);
+
+        if (localHasNewerEdits) {
+          localVersion = Math.max(localVersion, remoteVersion) + 1;
+          await setSettingsValue('sync_versions', { localVersion, remoteVersion: localVersion });
+          success = await autoUploadToCloud();
+        } else {
+          localVersion = remoteVersion;
+          await setSettingsValue('sync_versions', { localVersion, remoteVersion });
+          await clearSyncQueue();
+        }
+      } else {
+        localVersion = 1;
+        await setSettingsValue('sync_versions', { localVersion, remoteVersion: 1 });
+        success = await autoUploadToCloud();
+      }
+
+      if (success) {
+        const themeRecord = databaseArray.find(r => r.id === 'settings_theme');
+        if (themeRecord && themeRecord.data.value !== state.theme) {
+          state.theme = themeRecord.data.value;
+          applyTheme(state.theme);
+        }
+        const viewModeRecord = databaseArray.find(r => r.id === 'settings_viewMode');
+        if (viewModeRecord && viewModeRecord.data.value !== state.viewMode) {
+          state.viewMode = viewModeRecord.data.value;
+          setViewMode(state.viewMode);
+        }
+
+        state.images = databaseArray
+          .filter(r => r.table === 'images' && !r.deleted)
+          .map(r => ({
+            id: r.id,
+            title: r.data.title,
+            url: r.data.url,
+            status: r.data.status,
+            rating: r.data.rating,
+            tags: r.data.tags,
+            description: r.data.description,
+            favorite: !!r.data.favorite,
+            dateAdded: r.data.dateAdded || r.updatedAt
+          }));
+
+        updateStats();
+        renderCatalog();
+        setSyncStatus("✅ Synced Just Now", "active", true);
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error("Sync pull execution exception:", err);
+      const msg = !navigator.onLine ? "Sync paused - Offline\nTap to reconnect" : "Sync Paused ⚠️";
+      setSyncStatus(msg, "error");
+      if (err.status === 401 || err.message?.includes('401')) {
+        localStorage.setItem(AUTH_EXPIRY_KEY, '0');
+        evaluateRoutingSession();
+      }
+      return false;
+    }
+  }
+
+  // AUTO UPLOAD TO CLOUD (Gzip compressed file and metadata version properties)
+  async function autoUploadToCloud() {
+    if (localStorage.getItem(AUTH_LINKED_KEY) !== 'true' || !accessToken) return false;
+    setSyncStatus("Saving to Cloud...", "active");
+
+    try {
+      if (!cloudFileId) {
+        const response = await gapi.client.drive.files.list({
+          q: "name = 'aetherlens_backup.gz' and trashed = false",
+          spaces: 'appDataFolder',
+          fields: 'files(id)'
+        });
+        if (response.result.files.length > 0) {
+          cloudFileId = response.result.files[0].id;
+        } else {
+          const metaResp = await gapi.client.drive.files.create({
+            resource: { 
+              name: 'aetherlens_backup.gz', 
+              parents: ['appDataFolder'],
+              mimeType: 'application/octet-stream'
+            },
+            fields: 'id'
+          });
+          cloudFileId = metaResp.result.id;
+        }
+      }
+
+      const payload = { records: databaseArray };
+      const compressedBlob = await compressString(JSON.stringify(payload));
+
+      const uploadResp = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${cloudFileId}?uploadType=media`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/octet-stream'
+        },
+        body: compressedBlob
+      });
+      if (!uploadResp.ok) throw new Error('Upload payload failed');
+
+      const now = Date.now();
+      await gapi.client.drive.files.update({
+        fileId: cloudFileId,
+        resource: {
+          appProperties: {
+            dbVersion: String(localVersion),
+            updatedAt: String(now)
+          }
+        }
+      });
+
+      remoteVersion = localVersion;
+      await setSettingsValue('sync_versions', { localVersion, remoteVersion });
+      await clearSyncQueue();
+
+      setSyncStatus("✅ Synced Just Now", "active", true);
+      return true;
+    } catch (err) {
+      console.error("Cloud engine commit intercept:", err);
+      const msg = !navigator.onLine ? "Sync paused - Offline\nTap to reconnect" : "Sync Paused ⚠️";
+      setSyncStatus(msg, "error");
+      if (err.status === 401 || err.message?.includes('401')) {
+        localStorage.setItem(AUTH_EXPIRY_KEY, '0');
+        evaluateRoutingSession();
+      }
+      return false;
+    }
+  }
+
+  // DEBOUNCED CLOUD SYNC
+  function scheduleCloudSync(immediate = false) {
+    if (localStorage.getItem(AUTH_LINKED_KEY) !== 'true' || !accessToken) return;
+
+    setSyncStatus("Saving to Cloud...", "active");
+
+    if (syncDebounceTimeout) {
+      clearTimeout(syncDebounceTimeout);
+      syncDebounceTimeout = null;
+    }
+
+    if (immediate) {
+      triggerSyncNow();
+    } else {
+      syncDebounceTimeout = setTimeout(triggerSyncNow, 3000);
+    }
+  }
+
+  async function triggerSyncNow() {
+    if (syncDebounceTimeout) {
+      clearTimeout(syncDebounceTimeout);
+      syncDebounceTimeout = null;
+    }
+
+    if (isSyncingInProgress) {
+      hasPendingSyncRequest = true;
+      return;
+    }
+
+    isSyncingInProgress = true;
+    hasPendingSyncRequest = false;
+
+    try {
+      await pullAndMergeCloudData();
+    } catch (err) {
+      console.error("Sync execution error during triggerSyncNow:", err);
+    } finally {
+      isSyncingInProgress = false;
+      if (hasPendingSyncRequest) {
+        triggerSyncNow();
+      }
+    }
+  }
+
+  // MICRO-INTERACTION SYNC TRIGGER COOLDOWN
+  let lastInteractionSyncTime = Date.now();
+  const SYNC_COOLDOWN_MS = 300000;
+
+  function handleMicroInteraction() {
+    if (localStorage.getItem(AUTH_LINKED_KEY) !== 'true' || !accessToken) return;
+    if (isRefreshingToken || needsManualReconnect) return;
+
+    const expiry = parseInt(localStorage.getItem(AUTH_EXPIRY_KEY) || '0');
+    if (Date.now() >= expiry) {
+      evaluateRoutingSession();
+      return;
+    }
+
+    const now = Date.now();
+    if (now - lastInteractionSyncTime > SYNC_COOLDOWN_MS) {
+      lastInteractionSyncTime = now;
+      if (!isSyncingInProgress && !syncDebounceTimeout) {
+        setSyncStatus("Checking...", "active");
+        triggerSyncNow();
+      }
+    }
+  }
+
+  window.addEventListener('mousemove', handleMicroInteraction);
+  window.addEventListener('keydown', handleMicroInteraction);
+  window.addEventListener('touchstart', handleMicroInteraction, { passive: true });
+  window.addEventListener('focus', handleMicroInteraction);
+
+  window.addEventListener('beforeunload', (e) => {
+    getSyncQueue().then(queue => {
+      if (queue.length > 0) {
+        e.preventDefault();
+        e.returnValue = 'You have unsaved changes syncing to the cloud. Are you sure you want to leave?';
+      }
+    });
+  });
+
+  // ==========================================
+  // STATE MANAGEMENT
+  // ==========================================
+  let state = {
+    images: [],
+    viewMode: 'grid', // 'grid' | 'list'
+    filters: {
+      search: '',
+      tag: '',
+      status: '',
+      rating: 0
+    },
+    sort: 'dateAdded-desc',
+    theme: 'dark',
+    activeEditStars: 0,
+    activeAddStars: 0
+  };
+
+  // ==========================================
+  // DOM ELEMENT CACHE
+  // ==========================================
+  const catalogContainer = document.getElementById('catalog-container');
+  const emptyState = document.getElementById('empty-state');
+
+  // Header Stats
+  const statTotal = document.getElementById('stat-total');
+  const statFavs = document.getElementById('stat-favs');
+  const statTags = document.getElementById('stat-tags');
+
+  // Filters & Controls
+  const searchInput = document.getElementById('search-input');
+  const filterTag = document.getElementById('filter-tag');
+  const filterStatus = document.getElementById('filter-status');
+  const filterRating = document.getElementById('filter-rating');
+  const sortSelect = document.getElementById('sort-select');
+  const viewGridBtn = document.getElementById('view-grid-btn');
+  const viewListBtn = document.getElementById('view-list-btn');
+
+  // Modals & Backdrops
+  const modalAddSingle = document.getElementById('modal-add-single');
+  const modalBulk = document.getElementById('modal-bulk');
+  const modalImport = document.getElementById('modal-import');
+  const modalLightbox = document.getElementById('modal-lightbox');
+  const detailsDrawer = document.getElementById('details-drawer');
+  const drawerBackdrop = document.getElementById('drawer-backdrop');
+
+  // Theme Toggle Elements
+  const themeToggleBtn = document.getElementById('theme-toggle-btn');
+  const themeSun = document.getElementById('theme-sun');
+  const themeMoon = document.getElementById('theme-moon');
+
+  // ==========================================
+  // UTILITY HELPERS
+  // ==========================================
+
+  // Apply Theme Styling
+  function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    if (theme === 'light') {
+      themeSun.style.display = 'block';
+      themeMoon.style.display = 'none';
+    } else {
+      themeSun.style.display = 'none';
+      themeMoon.style.display = 'block';
+    }
+  }
+
+  // Parse Title From URL Filename
+  function cleanTitleFromUrl(urlStr) {
+    try {
+      const url = new URL(urlStr);
+      let filename = url.pathname.substring(url.pathname.lastIndexOf('/') + 1);
+
+      // Clean up Unsplash URL params if present
+      if (filename.includes('photo-')) {
+        return "Image Ref " + Math.floor(Math.random() * 1000);
+      }
+
+      filename = filename.split('.')[0]; // remove extension
+      if (!filename || filename === '') return "Untitled Link";
+
+      // Decode, replace dashes/underscores with space and capitalize
+      filename = decodeURIComponent(filename).replace(/[-_]/g, ' ');
+      return filename.charAt(0).toUpperCase() + filename.slice(1);
+    } catch (e) {
+      return "Linked Image";
+    }
+  }
+
+  // Read a local File object into a base64 data URL (Promise-based)
+  function readFileAsDataURL(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(reader.error || new Error('Failed to read file'));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // Turn an uploaded filename into a clean display title
+  function cleanTitleFromFilename(filename) {
+    let name = filename.replace(/\.[^/.]+$/, ''); // strip extension
+    name = name.replace(/[-_]/g, ' ').trim();
+    if (!name) return "Uploaded Image";
+    return name.charAt(0).toUpperCase() + name.slice(1);
+  }
+
+  // Reset the Add Single Image upload preview/state
+  function resetAddFilePreview() {
+    const fileInput = document.getElementById('add-file-input');
+    const previewWrap = document.getElementById('add-file-preview-wrap');
+    const preview = document.getElementById('add-file-preview');
+    if (fileInput) fileInput.value = '';
+    if (preview) preview.src = '';
+    if (previewWrap) previewWrap.style.display = 'none';
+  }
+
+  // Reset the Bulk Add upload selection/state
+  let bulkFileEntries = [];
+  function resetBulkFileSelection() {
+    bulkFileEntries = [];
+    const fileInput = document.getElementById('bulk-file-input');
+    const countEl = document.getElementById('bulk-file-count');
+    if (fileInput) fileInput.value = '';
+    if (countEl) countEl.textContent = '';
+  }
+
+  // Refresh Stats Dashboard
+  function updateStats() {
+    statTotal.textContent = state.images.length;
+
+    const favCount = state.images.filter(img => img.favorite).length;
+    statFavs.textContent = favCount;
+
+    const allTags = new Set();
+    state.images.forEach(img => {
+      if (img.tags && Array.isArray(img.tags)) {
+        img.tags.forEach(t => allTags.add(t.toLowerCase().trim()));
+      }
+    });
+    statTags.textContent = allTags.size;
+
+    // Repopulate Tag Dropdown Filter options
+    const currentSelectedTag = filterTag.value;
+    filterTag.innerHTML = '<option value="">All Tags</option>';
+
+    // Sort tags alphabetically
+    Array.from(allTags).sort().forEach(tag => {
+      if (tag) {
+        const option = document.createElement('option');
+        option.value = tag;
+        option.textContent = `#${tag}`;
+        if (tag === currentSelectedTag) {
+          option.selected = true;
+        }
+        filterTag.appendChild(option);
+      }
+    });
+  }
+
+  // Dynamic Badging / Tag Colors (curated color index)
+  function getTagHue(tagStr) {
+    let hash = 0;
+    for (let i = 0; i < tagStr.length; i++) {
+      hash = tagStr.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return Math.abs(hash % 360);
+  }
+
+  // Star Icons Renderer (returns HTML string)
+  function renderStarsHtml(rating, emptyClass = 'empty') {
+    let starsHtml = '';
+    const fullStar = `<svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>`;
+
+    for (let i = 1; i <= 5; i++) {
+      if (i <= rating) {
+        starsHtml += fullStar;
+      } else {
+        starsHtml += `<svg xmlns="http://www.w3.org/2000/svg" class="${emptyClass}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-.9 1.39-1.2 1.62 0l2.366 5.565 5.962.628c.954.1 1.294 1.25.64 1.832l-4.596 4.12 1.48 5.753c.24.93-1.077 1.8-1.82 1.27L12 18.2l-4.9 2.87c-.742.53-2.06-.34-1.82-1.27l1.48-5.753-4.596-4.12c-.654-.582-.314-1.73.64-1.832l5.962-.628L11.049 2.927z"/></svg>`;
+      }
+    }
+    return starsHtml;
+  }
+
+  // Interactive Stars Binding
+  function bindInteractiveStars(containerId, initialValue, callbackStateKey) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = '';
+
+    for (let i = 1; i <= 5; i++) {
+      const star = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      star.setAttribute('viewBox', '0 0 24 24');
+      star.setAttribute('fill', i <= initialValue ? 'currentColor' : 'none');
+      star.setAttribute('stroke', 'currentColor');
+      star.setAttribute('stroke-width', '2');
+      star.classList.toggle('active', i <= initialValue);
+
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('stroke-linecap', 'round');
+      path.setAttribute('stroke-linejoin', 'round');
+      path.setAttribute('d', 'M11.049 2.927c.3-.9 1.39-1.2 1.62 0l2.366 5.565 5.962.628c.954.1 1.294 1.25.64 1.832l-4.596 4.12 1.48 5.753c.24.93-1.077 1.8-1.82 1.27L12 18.2l-4.9 2.87c-.742.53-2.06-.34-1.82-1.27l1.48-5.753-4.596-4.12c-.654-.582-.314-1.73.64-1.832l5.962-.628L11.049 2.927z');
+      star.appendChild(path);
+
+      star.dataset.value = i;
+      star.addEventListener('click', () => {
+        state[callbackStateKey] = i;
+        // Re-render this set
+        bindInteractiveStars(containerId, i, callbackStateKey);
+      });
+
+      container.appendChild(star);
+    }
+  }
+
+  // Toggle Favorite State
+  function toggleFavorite(id, event) {
+    if (event) event.stopPropagation();
+    databaseArray = databaseArray.map(r => {
+      if (r.id === id) {
+        return {
+          ...r,
+          updatedAt: Date.now(),
+          data: { ...r.data, favorite: !r.data.favorite }
+        };
+      }
+      return r;
+    });
+
+    saveDatabaseArray(true);
+    addToSyncQueue(id);
+    scheduleCloudSync();
+
+    state.images = databaseArray
+      .filter(r => r.table === 'images' && !r.deleted)
+      .map(r => ({
+        id: r.id,
+        title: r.data.title,
+        url: r.data.url,
+        status: r.data.status,
+        rating: r.data.rating,
+        tags: r.data.tags,
+        description: r.data.description,
+        favorite: !!r.data.favorite,
+        dateAdded: r.data.dateAdded || r.updatedAt
+      }));
+
+    updateStats();
+    renderCatalog();
+  }
+
+  // ==========================================
+  // VIEW MODE MANAGER
+  // ==========================================
+  function setViewMode(mode) {
+    state.viewMode = mode;
+    if (mode === 'list') {
+      catalogContainer.className = 'catalog-container list-view';
+      viewListBtn.classList.add('active');
+      viewGridBtn.classList.remove('active');
+    } else {
+      catalogContainer.className = 'catalog-container grid-view';
+      viewGridBtn.classList.add('active');
+      viewListBtn.classList.remove('active');
+    }
+
+    databaseArray = databaseArray.map(r => {
+      if (r.id === 'settings_viewMode') {
+        return {
+          ...r,
+          updatedAt: Date.now(),
+          data: { value: mode }
+        };
+      }
+      return r;
+    });
+
+    saveDatabaseArray(true);
+    addToSyncQueue('settings_viewMode');
+    scheduleCloudSync();
+  }
+
+  // ==========================================
+  // DATA RENDERING (FILTER & SORT)
+  // ==========================================
+  function renderCatalog() {
+    let filtered = state.images.filter(img => {
+      const text = state.filters.search.toLowerCase().trim();
+      const matchSearch = !text ||
+        img.title.toLowerCase().includes(text) ||
+        (img.description && img.description.toLowerCase().includes(text)) ||
+        (img.tags && img.tags.some(t => t.toLowerCase().includes(text)));
+
+      const matchTag = !state.filters.tag ||
+        (img.tags && img.tags.some(t => t.toLowerCase() === state.filters.tag));
+
+      const matchStatus = !state.filters.status ||
+        img.status === state.filters.status;
+
+      const matchRating = !state.filters.rating ||
+        img.rating >= state.filters.rating;
+
+      return matchSearch && matchTag && matchStatus && matchRating;
+    });
+
+    const [sortKey, direction] = state.sort.split('-');
+    filtered.sort((a, b) => {
+      let valA = a[sortKey];
+      let valB = b[sortKey];
+
+      if (typeof valA === 'string') {
+        valA = valA.toLowerCase();
+        valB = valB.toLowerCase();
+      }
+
+      if (valA < valB) return direction === 'asc' ? -1 : 1;
+      if (valA > valB) return direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    catalogContainer.innerHTML = '';
+
+    if (filtered.length === 0) {
+      emptyState.style.display = 'flex';
+      catalogContainer.style.display = 'none';
+      return;
+    }
+
+    emptyState.style.display = 'none';
+    catalogContainer.style.display = 'grid';
+
+    filtered.forEach(img => {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.dataset.id = img.id;
+
+      card.addEventListener('dblclick', (e) => {
+        toggleFavorite(img.id, e);
+      });
+
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('.card-actions-overlay') || e.target.closest('.action-icon-btn')) {
+          return;
+        }
+        openDetailsDrawer(img.id);
+      });
+
+      let tagsHtml = '';
+      if (img.tags && Array.isArray(img.tags)) {
+        img.tags.slice(0, 3).forEach(tag => {
+          const hue = getTagHue(tag);
+          tagsHtml += `<span class="tag-pill" style="background: hsla(${hue}, 70%, 50%, 0.1); color: hsl(${hue}, 85%, 65%); border-color: hsla(${hue}, 70%, 50%, 0.25);">#${tag}</span>`;
+        });
+        if (img.tags.length > 3) {
+          tagsHtml += `<span class="tag-pill" style="background: var(--bg-input); color: var(--text-muted);">+${img.tags.length - 3}</span>`;
+        }
+      }
+
+      let badgeClass = 'badge-review';
+      if (img.status === 'Active') badgeClass = 'badge-active';
+      if (img.status === 'Archived') badgeClass = 'badge-archived';
+
+      const starsHtml = renderStarsHtml(img.rating);
+      const isFavClass = img.favorite ? 'active' : '';
+
+      card.innerHTML = `
+        <div class="card-img-wrapper">
+          <div class="img-placeholder" id="placeholder-${img.id}">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            <span style="font-size: 0.75rem;">Loading image...</span>
+          </div>
+          <img class="card-img" src="${img.url}" alt="${img.title}" loading="lazy" id="img-${img.id}">
+
+          <div class="card-actions-overlay">
+            <button class="action-icon-btn fav-btn ${isFavClass}" onclick="toggleFavorite('${img.id}', event)" title="Toggle Favorite">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24" style="width: 1.1rem; height: 1.1rem;">
+                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+              </svg>
+            </button>
+            <button class="action-icon-btn" onclick="openDetailsDrawer('${img.id}')" title="View details & edit">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width: 1.1rem; height: 1.1rem;">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="card-info">
+          <div class="card-title-row">
+            <h4 class="card-title" title="${img.title}">${img.title}</h4>
+            <span class="card-status-badge ${badgeClass}">${img.status}</span>
+          </div>
+
+          <p class="card-desc">${img.description || 'No description provided.'}</p>
+
+          <div class="card-rating-tags">
+            <div class="rating-stars">
+              ${starsHtml}
+            </div>
+            <div class="tags-container">
+              ${tagsHtml}
+            </div>
+          </div>
+        </div>
+      `;
+
+      catalogContainer.appendChild(card);
+
+      const imageNode = document.getElementById(`img-${img.id}`);
+      const placeholderNode = document.getElementById(`placeholder-${img.id}`);
+
+      imageNode.onload = function() {
+        imageNode.classList.add('loaded');
+        placeholderNode.style.display = 'none';
+      };
+
+      imageNode.onerror = function() {
+        placeholderNode.className = 'img-placeholder error';
+        placeholderNode.innerHTML = `
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <span style="font-weight: 600; font-size: 0.75rem;">Failed to load</span>
+          <span style="font-size: 0.65rem; opacity: 0.7; word-break: break-all; max-height: 2.2rem; overflow: hidden; padding: 0 5px;">
+            ${new URL(img.url).hostname || 'Domain blocked'}
+          </span>
+        `;
+      };
+    });
+  }
+
+  // ==========================================
+  // SIDEBAR / DETAILS DRAWER OPERATIONS
+  // ==========================================
+  function openDetailsDrawer(id) {
+    const imgObj = state.images.find(img => img.id === id);
+    if (!imgObj) return;
+
+    document.getElementById('edit-id').value = imgObj.id;
+    document.getElementById('edit-title').value = imgObj.title;
+    document.getElementById('edit-url').value = imgObj.url;
+    document.getElementById('edit-status').value = imgObj.status;
+    document.getElementById('edit-tags').value = (imgObj.tags || []).join(', ');
+    document.getElementById('edit-notes').value = imgObj.description || '';
+
+    const drawerImg = document.getElementById('drawer-image');
+    drawerImg.src = imgObj.url;
+
+    state.activeEditStars = imgObj.rating || 0;
+    bindInteractiveStars('edit-stars', state.activeEditStars, 'activeEditStars');
+
+    detailsDrawer.classList.add('open');
+    drawerBackdrop.classList.add('open');
+  }
+
+  function closeDetailsDrawer() {
+    detailsDrawer.classList.remove('open');
+    drawerBackdrop.classList.remove('open');
+  }
+
+  function saveDrawerDetails() {
+    const id = document.getElementById('edit-id').value;
+    const title = document.getElementById('edit-title').value.trim();
+    const url = document.getElementById('edit-url').value.trim();
+    const status = document.getElementById('edit-status').value;
+    const notes = document.getElementById('edit-notes').value.trim();
+
+    const rawTags = document.getElementById('edit-tags').value;
+    const tags = rawTags.split(',')
+      .map(tag => tag.trim().toLowerCase())
+      .filter(tag => tag !== '');
+
+    if (!url || !title) {
+      alert("Please fill in both URL and Title!");
+      return;
+    }
+
+    databaseArray = databaseArray.map(r => {
+      if (r.id === id) {
+        return {
+          ...r,
+          updatedAt: Date.now(),
+          data: {
+            ...r.data,
+            title,
+            url,
+            status,
+            rating: state.activeEditStars,
+            tags,
+            description: notes
+          }
+        };
+      }
+      return r;
+    });
+
+    saveDatabaseArray(true);
+    addToSyncQueue(id);
+    scheduleCloudSync();
+
+    state.images = databaseArray
+      .filter(r => r.table === 'images' && !r.deleted)
+      .map(r => ({
+        id: r.id,
+        title: r.data.title,
+        url: r.data.url,
+        status: r.data.status,
+        rating: r.data.rating,
+        tags: r.data.tags,
+        description: r.data.description,
+        favorite: !!r.data.favorite,
+        dateAdded: r.data.dateAdded || r.updatedAt
+      }));
+
+    updateStats();
+    renderCatalog();
+    closeDetailsDrawer();
+  }
+
+  function deleteDrawerItem() {
+    const id = document.getElementById('edit-id').value;
+    if (confirm("Are you sure you want to delete this image from your tracker?")) {
+      databaseArray = databaseArray.map(r => {
+        if (r.id === id) {
+          return {
+            ...r,
+            deleted: true,
+            updatedAt: Date.now()
+          };
+        }
+        return r;
+      });
+
+      saveDatabaseArray(true);
+      addToSyncQueue(id);
+      scheduleCloudSync();
+
+      state.images = databaseArray
+        .filter(r => r.table === 'images' && !r.deleted)
+        .map(r => ({
+          id: r.id,
+          title: r.data.title,
+          url: r.data.url,
+          status: r.data.status,
+          rating: r.data.rating,
+          tags: r.data.tags,
+          description: r.data.description,
+          favorite: !!r.data.favorite,
+          dateAdded: r.data.dateAdded || r.updatedAt
+        }));
+
+      updateStats();
+      renderCatalog();
+      closeDetailsDrawer();
+    }
+  }
+
+  // ==========================================
+  // MODAL TOGGLES
+  // ==========================================
+  function toggleModal(modalEl, show) {
+    if (show) {
+      modalEl.classList.add('open');
+    } else {
+      modalEl.classList.remove('open');
+    }
+  }
+
+  // Add Single Image Submission
+  function submitSingleImage() {
+    const url = document.getElementById('add-url').value.trim();
+    let title = document.getElementById('add-title').value.trim();
+    const status = document.getElementById('add-status').value;
+    const rawTags = document.getElementById('add-tags').value;
+    const notes = document.getElementById('add-notes').value.trim();
+
+    if (!url) {
+      alert("Please provide an image URL.");
+      return;
+    }
+
+    if (!title) {
+      title = cleanTitleFromUrl(url);
+    }
+
+    const tags = rawTags.split(',')
+      .map(t => t.trim().toLowerCase())
+      .filter(t => t !== '');
+
+    const id = "img-" + Date.now() + Math.floor(Math.random()*100);
+    const newRecord = {
+      id: id,
+      table: 'images',
+      updatedAt: Date.now(),
+      deleted: false,
+      data: {
+        title,
+        url,
+        status,
+        rating: state.activeAddStars,
+        tags,
+        description: notes,
+        favorite: false,
+        dateAdded: Date.now()
+      }
+    };
+
+    databaseArray.unshift(newRecord);
+    saveDatabaseArray(true);
+    addToSyncQueue(id);
+    scheduleCloudSync();
+
+    state.images = databaseArray
+      .filter(r => r.table === 'images' && !r.deleted)
+      .map(r => ({
+        id: r.id,
+        title: r.data.title,
+        url: r.data.url,
+        status: r.data.status,
+        rating: r.data.rating,
+        tags: r.data.tags,
+        description: r.data.description,
+        favorite: !!r.data.favorite,
+        dateAdded: r.data.dateAdded || r.updatedAt
+      }));
+
+    updateStats();
+    renderCatalog();
+
+    document.getElementById('add-single-form').reset();
+    state.activeAddStars = 0;
+    bindInteractiveStars('add-stars', 0, 'activeAddStars');
+    resetAddFilePreview();
+
+    toggleModal(modalAddSingle, false);
+  }
+
+  // Bulk Import Submission
+  function submitBulkImport() {
+    const content = document.getElementById('bulk-textarea').value;
+    const defaultStatus = document.getElementById('bulk-status').value;
+    const rawTags = document.getElementById('bulk-tags').value;
+
+    const lines = content.split('\n')
+      .map(line => line.trim())
+      .filter(line => line.startsWith('http://') || line.startsWith('https://'));
+
+    if (lines.length === 0 && bulkFileEntries.length === 0) {
+      alert("Nothing to import. Paste URLs starting with http:// or https://, or upload images from your device.");
+      return;
+    }
+
+    const defaultTags = rawTags.split(',')
+      .map(t => t.trim().toLowerCase())
+      .filter(t => t !== '');
+
+    let addedCount = 0;
+    const now = Date.now();
+
+    lines.forEach((url, index) => {
+      try {
+        new URL(url);
+      } catch (e) {
+        return;
+      }
+
+      const cleanTitle = cleanTitleFromUrl(url);
+      const id = "img-" + now + "-" + index + "-" + Math.floor(Math.random()*10);
+      const newRecord = {
+        id: id,
+        table: 'images',
+        updatedAt: now,
+        deleted: false,
+        data: {
+          title: cleanTitle,
+          url: url,
+          status: defaultStatus,
+          rating: 3,
+          tags: [...defaultTags],
+          description: `Imported via bulk tool on ${new Date().toLocaleDateString()}.`,
+          favorite: false,
+          dateAdded: now - index * 60000
+        }
+      };
+
+      databaseArray.unshift(newRecord);
+      addToSyncQueue(id);
+      addedCount++;
+    });
+
+    bulkFileEntries.forEach((entry, index) => {
+      const id = "img-" + now + "-file-" + index + "-" + Math.floor(Math.random()*10);
+      const newRecord = {
+        id: id,
+        table: 'images',
+        updatedAt: now,
+        deleted: false,
+        data: {
+          title: entry.title,
+          url: entry.dataUrl,
+          status: defaultStatus,
+          rating: 3,
+          tags: [...defaultTags],
+          description: `Uploaded from device on ${new Date().toLocaleDateString()}.`,
+          favorite: false,
+          dateAdded: now - (lines.length + index) * 60000
+        }
+      };
+
+      databaseArray.unshift(newRecord);
+      addToSyncQueue(id);
+      addedCount++;
+    });
+
+    saveDatabaseArray(true);
+    scheduleCloudSync();
+
+    state.images = databaseArray
+      .filter(r => r.table === 'images' && !r.deleted)
+      .map(r => ({
+        id: r.id,
+        title: r.data.title,
+        url: r.data.url,
+        status: r.data.status,
+        rating: r.data.rating,
+        tags: r.data.tags,
+        description: r.data.description,
+        favorite: !!r.data.favorite,
+        dateAdded: r.data.dateAdded || r.updatedAt
+      }));
+
+    updateStats();
+    renderCatalog();
+
+    document.getElementById('bulk-textarea').value = '';
+    resetBulkFileSelection();
+    toggleModal(modalBulk, false);
+    alert(`Successfully imported ${addedCount} images!`);
+  }
+
+  // ==========================================
+  // IMPORT & EXPORT DATABASE SYSTEM
+  // ==========================================
+
+  // Download State JSON
+  function exportDatabaseAsJson() {
+    if (databaseArray.length === 0) {
+      alert("Nothing to export! Load some data first.");
+      return;
+    }
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(databaseArray, null, 2));
+    const dlAnchorElem = document.createElement('a');
+    dlAnchorElem.setAttribute("href", dataStr);
+    dlAnchorElem.setAttribute("download", `aether_lens_backup_${new Date().toISOString().slice(0,10)}.json`);
+    dlAnchorElem.click();
+  }
+
+  // Restore State from JSON (with envelope checks and safe merges)
+  function submitJsonRestore() {
+    const rawJsonText = document.getElementById('import-textarea').value.trim();
+
+    if (!rawJsonText) {
+      alert("Please paste some JSON data or load a file.");
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(rawJsonText);
+
+      if (!Array.isArray(parsed)) {
+        alert("Invalid format: Root element of the JSON must be an Array.");
+        return;
+      }
+
+      const now = Date.now();
+      let importedEnvelopes = [];
+      const isEnvelopeFormat = parsed.length > 0 && parsed[0].table && parsed[0].id;
+
+      if (isEnvelopeFormat) {
+        importedEnvelopes = parsed.map(item => ({
+          ...item,
+          updatedAt: now
+        }));
+      } else {
+        importedEnvelopes = parsed.map((item, index) => {
+          if (!item.url) {
+            throw new Error(`Item at position ${index} is missing the required "url" field.`);
+          }
+          const id = item.id || "img-" + now + "-" + index + "-" + Math.floor(Math.random()*10);
+          return {
+            id: id,
+            table: 'images',
+            updatedAt: now,
+            deleted: false,
+            data: {
+              title: item.title || cleanTitleFromUrl(item.url),
+              url: item.url,
+              status: item.status || "To Review",
+              rating: Number(item.rating) || 3,
+              tags: Array.isArray(item.tags) ? item.tags : [],
+              description: item.description || "",
+              favorite: !!item.favorite,
+              dateAdded: Number(item.dateAdded) || now
+            }
+          };
+        });
+      }
+
+      const importedIds = new Set(importedEnvelopes.map(item => item.id));
+
+      const oldDataDeleted = databaseArray
+        .filter(item => item.table === 'images' && !importedIds.has(item.id))
+        .map(item => ({
+          ...item,
+          deleted: true,
+          updatedAt: now
+        }));
+
+      const settingsRecords = databaseArray.filter(item => item.table === 'settings');
+      databaseArray = [...importedEnvelopes, ...oldDataDeleted, ...settingsRecords];
+
+      saveDatabaseArray(true);
+      
+      importedEnvelopes.forEach(item => addToSyncQueue(item.id));
+      oldDataDeleted.forEach(item => addToSyncQueue(item.id));
+
+      scheduleCloudSync();
+
+      state.images = databaseArray
+        .filter(r => r.table === 'images' && !r.deleted)
+        .map(r => ({
+          id: r.id,
+          title: r.data.title,
+          url: r.data.url,
+          status: r.data.status,
+          rating: r.data.rating,
+          tags: r.data.tags,
+          description: r.data.description,
+          favorite: !!r.data.favorite,
+          dateAdded: r.data.dateAdded || r.updatedAt
+        }));
+
+      updateStats();
+      renderCatalog();
+
+      document.getElementById('import-textarea').value = '';
+      document.getElementById('import-file-input').value = '';
+      toggleModal(modalImport, false);
+      alert(`Import Successful! ${importedEnvelopes.length} records imported/restored.`);
+
+    } catch (err) {
+      alert("Failed to parse JSON backup content: " + err.message);
+    }
+  }
+
+  // Handle File Input Selection
+  function handleJsonFileSelect(evt) {
+    const file = evt.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      document.getElementById('import-textarea').value = e.target.result;
+    };
+    reader.readAsText(file);
+  }
+
+  // ==========================================
+  // EVENT LISTENER BINDINGS
+  // ==========================================
+
+  // Theme Toggle
+  themeToggleBtn.addEventListener('click', () => {
+    state.theme = state.theme === 'dark' ? 'light' : 'dark';
+    applyTheme(state.theme);
+
+    databaseArray = databaseArray.map(r => {
+      if (r.id === 'settings_theme') {
+        return {
+          ...r,
+          updatedAt: Date.now(),
+          data: { value: state.theme }
+        };
+      }
+      return r;
+    });
+
+    saveDatabaseArray(true);
+    addToSyncQueue('settings_theme');
+    scheduleCloudSync();
+  });
+
+  // Search & Filter listeners
+  searchInput.addEventListener('input', (e) => {
+    state.filters.search = e.target.value;
+    renderCatalog();
+  });
+
+  filterTag.addEventListener('change', (e) => {
+    state.filters.tag = e.target.value;
+    renderCatalog();
+  });
+
+  filterStatus.addEventListener('change', (e) => {
+    state.filters.status = e.target.value;
+    renderCatalog();
+  });
+
+  filterRating.addEventListener('change', (e) => {
+    state.filters.rating = Number(e.target.value);
+    renderCatalog();
+  });
+
+  sortSelect.addEventListener('change', (e) => {
+    state.sort = e.target.value;
+    renderCatalog();
+  });
+
+  // View togglers
+  viewGridBtn.addEventListener('click', () => setViewMode('grid'));
+  viewListBtn.addEventListener('click', () => setViewMode('list'));
+
+  // Open Add Single Image Modal
+  document.getElementById('btn-add-single').addEventListener('click', () => {
+    state.activeAddStars = 0;
+    bindInteractiveStars('add-stars', 0, 'activeAddStars');
+    resetAddFilePreview();
+    toggleModal(modalAddSingle, true);
+  });
+  document.getElementById('btn-empty-add').addEventListener('click', () => {
+    state.activeAddStars = 0;
+    bindInteractiveStars('add-stars', 0, 'activeAddStars');
+    resetAddFilePreview();
+    toggleModal(modalAddSingle, true);
+  });
+
+  // Modal Cancel/Closes
+  document.getElementById('btn-close-add-modal').addEventListener('click', () => { resetAddFilePreview(); toggleModal(modalAddSingle, false); });
+  document.getElementById('btn-cancel-add').addEventListener('click', () => { resetAddFilePreview(); toggleModal(modalAddSingle, false); });
+
+  // Submit single add
+  document.getElementById('btn-submit-add').addEventListener('click', submitSingleImage);
+
+  // Upload a local file for the single-add form: read it into a data URL,
+  // drop it into the URL field, auto-fill the title, and show a preview.
+  document.getElementById('add-file-input').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    try {
+      const dataUrl = await readFileAsDataURL(file);
+      document.getElementById('add-url').value = dataUrl;
+
+      const titleField = document.getElementById('add-title');
+      if (!titleField.value.trim()) {
+        titleField.value = cleanTitleFromFilename(file.name);
+      }
+
+      const preview = document.getElementById('add-file-preview');
+      preview.src = dataUrl;
+      document.getElementById('add-file-preview-wrap').style.display = 'block';
+    } catch (err) {
+      alert('Failed to read the selected file.');
+    }
+  });
+
+  // Open Bulk Import Modal
+  document.getElementById('btn-bulk').addEventListener('click', () => {
+    resetBulkFileSelection();
+    toggleModal(modalBulk, true);
+  });
+  document.getElementById('btn-close-bulk-modal').addEventListener('click', () => { resetBulkFileSelection(); toggleModal(modalBulk, false); });
+  document.getElementById('btn-cancel-bulk').addEventListener('click', () => { resetBulkFileSelection(); toggleModal(modalBulk, false); });
+  document.getElementById('btn-submit-bulk').addEventListener('click', submitBulkImport);
+
+  // Upload multiple local files for the bulk-add form: read each into a
+  // data URL and stage them for import alongside any pasted links.
+  document.getElementById('bulk-file-input').addEventListener('change', async (e) => {
+    const files = Array.from(e.target.files);
+    const countEl = document.getElementById('bulk-file-count');
+    bulkFileEntries = [];
+
+    if (files.length === 0) {
+      countEl.textContent = '';
+      return;
+    }
+
+    countEl.textContent = `Reading ${files.length} file(s)...`;
+    try {
+      for (const file of files) {
+        const dataUrl = await readFileAsDataURL(file);
+        bulkFileEntries.push({ title: cleanTitleFromFilename(file.name), dataUrl });
+      }
+      countEl.textContent = `${bulkFileEntries.length} image(s) ready to import.`;
+    } catch (err) {
+      countEl.textContent = 'Failed to read one or more files.';
+    }
+  });
+
+  // JSON Export trigger
+  document.getElementById('btn-export').addEventListener('click', exportDatabaseAsJson);
+
+  // JSON Import Modal trigger
+  document.getElementById('btn-import-modal').addEventListener('click', () => {
+    toggleModal(modalImport, true);
+  });
+  document.getElementById('btn-close-import-modal').addEventListener('click', () => toggleModal(modalImport, false));
+  document.getElementById('btn-cancel-import').addEventListener('click', () => toggleModal(modalImport, false));
+  document.getElementById('btn-submit-import').addEventListener('click', submitJsonRestore);
+  document.getElementById('import-file-input').addEventListener('change', handleJsonFileSelect);
+
+  // Details Drawer triggers
+  document.getElementById('drawer-close').addEventListener('click', closeDetailsDrawer);
+  drawerBackdrop.addEventListener('click', closeDetailsDrawer);
+  document.getElementById('btn-drawer-cancel').addEventListener('click', closeDetailsDrawer);
+  document.getElementById('btn-drawer-save').addEventListener('click', saveDrawerDetails);
+  document.getElementById('btn-drawer-delete').addEventListener('click', deleteDrawerItem);
+
+  // Wipe Saved Data
+  document.getElementById('btn-clear-db').addEventListener('click', async () => {
+    if (confirm("🚨 DANGER: Are you completely sure you want to clear your saved image database? This cannot be undone!")) {
+      const now = Date.now();
+      await clearSyncQueue();
+
+      databaseArray = databaseArray.map(r => {
+        if (r.table === 'settings') {
+          let defaultValue = 'dark';
+          if (r.id === 'settings_viewMode') defaultValue = 'grid';
+          addToSyncQueue(r.id);
+          return {
+            ...r,
+            deleted: false,
+            updatedAt: now,
+            data: { value: defaultValue }
+          };
+        } else {
+          addToSyncQueue(r.id);
+          return {
+            ...r,
+            deleted: true,
+            updatedAt: now
+          };
+        }
+      });
+
+      await saveDatabaseArray(true);
+      scheduleCloudSync(true);
+
+      state.images = [];
+      state.theme = 'dark';
+      state.viewMode = 'grid';
+      applyTheme(state.theme);
+      setViewMode(state.viewMode);
+
+      updateStats();
+      renderCatalog();
+      alert("Database wiped successfully.");
+    }
+  });
+
+  // Load 50 Sample Database
+  function loadSampleDataHandler() {
+    if (state.images.length > 0) {
+      if (!confirm("This will overwrite your current library. Proceed?")) {
+        return;
+      }
+    }
+    const now = Date.now();
+
+    const sampleRecords = SAMPLE_IMAGES.map((img, index) => {
+      const id = "img-sample-" + index;
+      return {
+        id: id,
+        table: 'images',
+        updatedAt: now,
+        deleted: false,
+        data: {
+          title: img.title,
+          url: img.url,
+          status: img.status,
+          rating: img.rating,
+          tags: img.tags,
+          description: img.description,
+          favorite: false,
+          dateAdded: img.dateAdded || now
+        }
+      };
+    });
+
+    const sampleIds = new Set(sampleRecords.map(item => item.id));
+
+    const oldDataDeleted = databaseArray
+      .filter(item => item.table === 'images' && !sampleIds.has(item.id))
+      .map(item => ({
+        ...item,
+        deleted: true,
+        updatedAt: now
+      }));
+
+    const settingsRecords = databaseArray.filter(item => item.table === 'settings');
+    databaseArray = [...sampleRecords, ...oldDataDeleted, ...settingsRecords];
+
+    saveDatabaseArray(true);
+
+    sampleRecords.forEach(item => addToSyncQueue(item.id));
+    oldDataDeleted.forEach(item => addToSyncQueue(item.id));
+
+    scheduleCloudSync();
+
+    state.images = databaseArray
+      .filter(r => r.table === 'images' && !r.deleted)
+      .map(r => ({
+        id: r.id,
+        title: r.data.title,
+        url: r.data.url,
+        status: r.data.status,
+        rating: r.data.rating,
+        tags: r.data.tags,
+        description: r.data.description,
+        favorite: !!r.data.favorite,
+        dateAdded: r.data.dateAdded || r.updatedAt
+      }));
+
+    updateStats();
+    renderCatalog();
+  }
+  document.getElementById('btn-empty-load-samples').addEventListener('click', loadSampleDataHandler);
+
+  // Fullscreen Lightbox triggers
+  document.getElementById('drawer-img-click').addEventListener('click', () => {
+    const imgUrl = document.getElementById('drawer-image').src;
+    const imgTitle = document.getElementById('edit-title').value;
+
+    document.getElementById('lightbox-image').src = imgUrl;
+    document.getElementById('lightbox-caption').textContent = imgTitle;
+
+    toggleModal(modalLightbox, true);
+  });
+
+  document.getElementById('btn-close-lightbox').addEventListener('click', () => toggleModal(modalLightbox, false));
+  modalLightbox.addEventListener('click', (e) => {
+    if (e.target === modalLightbox || e.target.closest('#btn-close-lightbox')) {
+      toggleModal(modalLightbox, false);
+    }
+  });
+
+  // ==========================================
+  // APP INITIALIZATION
+  // ==========================================
+  async function initApp() {
+    if (localStorage.getItem(AUTH_LINKED_KEY) === 'true') {
+      const authBtn = document.getElementById('authBtn');
+      if (authBtn) {
+        authBtn.textContent = 'Syncing...';
+        authBtn.className = 'btn btn-secondary';
+        authBtn.disabled = true;
+      }
+      setSyncStatus("Connecting to Drive...", "active");
+    }
+
+    await loadFromLocalStorage();
+    updateStats();
+    renderCatalog();
+
+    bindInteractiveStars('add-stars', 0, 'activeAddStars');
+  }
+
+  // Fire initialization
+  window.addEventListener('DOMContentLoaded', initApp);
+
+</script>
+
+</body>
+</html>
